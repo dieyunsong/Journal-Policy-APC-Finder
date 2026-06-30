@@ -1,0 +1,24 @@
+# Copyright (c) 2026, Regents of the University of Michigan. All rights reserved.
+# See LICENSE.txt for details.
+---
+services:
+  web:
+    build:
+      target: development
+      context: .
+    ports:
+    - "3000:80"
+    volumes:
+    - ./html:/usr/local/apache2/htdocs
+
+  data:
+    build:
+      target: data
+      context: .
+    volumes:
+    - .:/app
+    - bundle:/bundle
+    profiles: ["data"]
+
+volumes:
+  bundle:

@@ -1,0 +1,129 @@
+#!/usr/bin/env ruby
+
+# Copyright (c) 2026, Regents of the University of Michigan. All rights reserved.
+# Licensed under the terms of LICENSE.txt.
+
+require "bundler/setup"
+Bundler.require
+
+require "json"
+require "base64"
+require "digest"
+
+ENV['GOOGLE_DRIVE_CREDENTIALS'] ||= File.read("credentials.json64").chomp
+
+class Updater
+  JSON_FILE = "html/data.json"
+  S3_JSON_FILE = "html/data.json.s3"
+  VERSION = "2025-11-07.1"
+  HEADER = ["Publisher", "Journal Title", "eISSN", "eISSN Link", "Discount or Waiver", "Campuses Covered", "Coverage Years", "Link to Agreement Info"]
+  NULL_ALLOWED = ["eISSN", "eISSN Link" ]
+  SPREADSHEET_NAME = "List of Journals with APC Agreements"
+  SCHEMA = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "required": ["header", "version", "data"],
+    "properties": {
+      "header": {
+        "type" => "array",
+        "items" => {
+          "minItems": HEADER.length,
+          "maxItems": HEADER.length,
+          "type": "string",
+          "enum": HEADER,
+        }
+      },
+      "version": { "type" => "string", "enum": [VERSION] },
+      "data": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "array",
+          "minItems": HEADER.length,
+          "maxItems": HEADER.length,
+          "items": HEADER.map { |column| {"type": NULL_ALLOWED.include?(column) ? ["string", "null"] : "string" } }
+        }
+      },
+    }
+  }
+
+  def initialize(credentials, verbose = false)
+    @session = GoogleDrive::Session.from_service_account_key(credentials)
+    @verbose = verbose
+  end
+
+  def update
+    before_checksum = Digest::SHA256.file(JSON_FILE).hexdigest
+    file = fetch_spreadsheet(SPREADSHEET_NAME)
+    puts "Fetched spreadsheet successfully." if @verbose
+    data = extract_data(file)
+    puts "Data extracted successfully." if @verbose
+    validate_data(data)
+    puts "Data validated successfully." if @verbose
+    write_json_file(data, JSON_FILE)
+    puts "Data written successfully." if @verbose
+    validate_json_file(JSON_FILE)
+    puts "Written Data validated successfully." if @verbose
+    after_checksum = Digest::SHA256.file(JSON_FILE).hexdigest
+    s3_checksum = File.exist?(JSON_FILE + ".s3") ?  Digest::SHA256.file(S3_JSON_FILE).hexdigest : ""
+    if before_checksum == after_checksum
+      puts "No changes detected in data. Update not necessary."
+      exit 1
+    elsif after_checksum == s3_checksum
+      puts "No changes detected compared to S3 version. Update not necessary."
+      exit 2
+    else
+      puts "Update completed successfully."
+    end
+  end
+
+  def fetch_spreadsheet(spreadsheet_name)
+    file_content = StringIO.new
+    file = @session.files(q: ["name = ?", spreadsheet_name]).find { |file| file.title == spreadsheet_name }
+    file.export_as_file(file_content, "text/tab-separated-values")
+    file_content.rewind
+    if file_content.size == 0
+      puts "Error: Spreadsheet is empty or could not be fetched."
+      exit 3
+    end
+    file_content
+  end
+
+  def extract_data(file)
+    rows = []
+    file.each_line { |line| fields = line.chomp.split("\t") ; rows << fields }
+    header = rows.shift
+    if HEADER.join("") != header.join("")
+      "Puts Header Mismatch Detected"
+      exit 4
+    end
+    rows.compact!
+    rows.reject! { |row| row.empty? || row.all?(&:empty?) }
+    {
+      header: HEADER,
+      version: VERSION,
+      data: rows.map { |row| row.map { |field| field.empty? ? nil : field }}
+    }
+  end
+
+  def write_json_file(data, json_file)
+    File.write(json_file, data.to_json)
+  end
+
+  def validate_data(data)
+    unless JSON::Validator.validate(SCHEMA, data)
+      puts "Preflight Data Validation failed."
+      exit 5
+    end
+  end
+
+  def validate_json_file(json_file)
+    validate = JSON.parse(IO.read(json_file))
+    unless JSON::Validator.validate(SCHEMA, validate)
+      puts "Data File Validation failed"
+      exit 6
+    end
+  end
+end
+
+Updater.new(StringIO.new(Base64.decode64(ENV["GOOGLE_DRIVE_CREDENTIALS"]))).update

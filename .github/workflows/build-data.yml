@@ -1,0 +1,34 @@
+name: Build and validate data
+
+on:
+  push:
+    paths:
+      - "data/**"
+      - "bin/build_data"
+      - "html/**"
+      - ".github/workflows/build-data.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+      - name: Build data.json from the source CSV
+        run: ruby bin/build_data
+      - name: Validate data.json shape
+        run: |
+          ruby -rjson -e '
+            d = JSON.parse(File.read("html/data.json"))
+            header = ["Publisher","Journal Title","eISSN","eISSN Link","Link to Agreement Info"]
+            raise "header mismatch" unless d["header"] == header
+            raise "no rows" if d["data"].empty?
+            d["data"].each_with_index { |r,i| raise "row #{i} wrong length" unless r.length == 5 }
+            puts "OK: #{d["data"].length} rows"
+          '
+      - name: Fail if data.json is out of date with the CSV
+        run: git diff --exit-code html/data.json

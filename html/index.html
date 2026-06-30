@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal Policy &amp; APC Finder</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+  <link href="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.3.2/datatables.min.css" rel="stylesheet"
+    integrity="sha384-dG72sN6C6+JA9moN/5eRa0GqXlYOpTivxgRRV4rTctUeb4ZNF6uuJ5NXmz+8+3Qi" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" />
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <div role="navigation" class="skip-links" aria-label="Skip links">
+    <div class="viewport-container">
+      <ul>
+        <li><a href="#maincontent">Skip to main content</a></li>
+        <li><a href="#searchandfilter">Skip to Search and Filter</a></li>
+      </ul>
+    </div>
+  </div>
+  <header class="nu-header">
+    <div class="viewport-container">
+      <div class="nu-header__inner">
+        <a href="https://www.library.northwestern.edu/" class="nu-header__eyebrow">Northwestern University Libraries</a>
+        <span class="nu-header__title">Journal Policy &amp; APC Finder</span>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="viewport-container mt-5 mb-5" id="maincontent">
+      <h1 class="mb-4">Journal Policy &amp; APC Finder</h1>
+      <p style="max-width:38rem; font-size: 1.125rem;" class="mb-4">
+        This site helps <strong>Northwestern-affiliated authors</strong> find journals covered by
+        <strong>open access (OA)</strong> and <strong>transformative agreements (TA)</strong> negotiated by
+        <strong>Northwestern University Libraries</strong> and the <strong>Big Ten Academic Alliance (BTAA)</strong>.
+        Search by journal title or eISSN to see the publisher and a link to the agreement and policy details.
+      </p>
+      <p style="max-width:38rem; font-size: 1.125rem;" class="mb-4">Considerations:
+      <ul>
+        <li style="max-width:38rem; font-size: 1.125rem;">The <strong>corresponding author must be affiliated with
+            Northwestern University</strong>. Confirm eligibility and covered article types, follow each journal's
+          submission guidelines, and use your Northwestern email address when submitting to avoid verification delays.</li>
+        <li style="max-width:38rem; font-size: 1.125rem;"><strong>If a journal is not listed</strong>, it may still be
+          open access or covered by a separate agreement, a departmental membership, or a publisher-wide deal where
+          individual titles are not enumerated here. For some publishers (e.g., Springer Nature, Wiley, ACS, Cambridge,
+          IOP), coverage is listed at the <strong>publisher level</strong> &mdash; use the publisher's own journal
+          finder to confirm a specific title.</li>
+        <li style="max-width:38rem; font-size: 1.125rem;"><strong>When searching common terms in titles</strong>, the
+          results list can be long. Try searching by eISSN for a direct match, or adjust 'Items per page' to see more
+          titles at once.</li>
+      </ul>
+      </p>
+      <p>
+        See <a href="https://www.library.northwestern.edu/use-the-libraries/research-teaching/open-access-publishing/">Open
+          Access Publishing at Northwestern</a> for full agreement details, or email
+        <a href="mailto:scholarlycommunication@northwestern.edu">scholarlycommunication@northwestern.edu</a> with questions.
+      </p>
+      <hr class="horizontal-line" />
+      <div style="overflow-x: auto; width: 100%;">
+        <table id="apcTable" class="m-table" style="min-width: 800px;"></table>
+      </div>
+      <hr />
+      <p style="max-width:38rem;" class="mb-4">
+        <strong id="eissnInfo">EISSNs</strong> link to supplemental information, including associated ISSNs under
+        &ldquo;Identifiers&rdquo; and links to journal websites (URLs) under &ldquo;Links&rdquo; on the ISSN portal.
+      </p>
+      <p style="max-width:38rem;" class="mb-4">
+        <strong id="agreementInfo">Agreement Info</strong> links to the Northwestern Libraries page describing the
+        agreement, including eligible article types, exclusions, and current coverage dates.
+      </p>
+      <a href="#apcTable_info" style="text-decoration: none;"><span style="text-decoration: underline;">Return to
+          results</span><span style="text-decoration:none !important"> &#9650;</span></a>
+    </div>
+  </main>
+  <footer class="footer mt-20" id="footer">
+    <div class="viewport-container">
+      <div class="footer__content">
+        <section class="first-column">
+          <h2>Northwestern University Libraries</h2>
+          <ul>
+            <li><a href="https://www.library.northwestern.edu/"><span class="address">1970 Campus Drive, Evanston, IL
+                  60208</span></a></li>
+          </ul>
+        </section>
+        <section>
+          <h2>Contact Us</h2>
+          <ul>
+            <li><a href="mailto:scholarlycommunication@northwestern.edu">scholarlycommunication@northwestern.edu</a></li>
+          </ul>
+        </section>
+        <section>
+          <h2>More Info</h2>
+          <ul>
+            <li><a href="https://www.library.northwestern.edu/use-the-libraries/research-teaching/open-access-publishing/">Open
+                Access Publishing at Northwestern</a></li>
+          </ul>
+        </section>
+      </div>
+    </div>
+    <div class="footer__disclaimer">
+      <div class="viewport-container">
+        <p>&copy; <span id="year">2026</span> Northwestern University</p>
+        <p>
+          Adapted from the
+          <a href="https://github.com/mlibrary/article-processing-charge-list">University of Michigan APC list</a>
+          (BSD-3-Clause).
+        </p>
+      </div>
+    </div>
+  </footer>
+  <script>
+    const year = new Date().getFullYear();
+    document.getElementById('year').textContent = year;
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"
+    integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.3.2/datatables.min.js"
+    integrity="sha384-qLLX0jMaWXMZrun5/ry13tv5MX78CJNleGaaJVXRuJCDiAwyjhYWsTM3Qk3VaKC3"
+    crossorigin="anonymous"></script>
+  <script src="js/script.js"></script>
+</body>
+
+
+</html>
