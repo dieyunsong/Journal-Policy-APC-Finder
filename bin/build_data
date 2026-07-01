@@ -16,6 +16,7 @@
 
 require "csv"
 require "json"
+require "digest"
 
 CSV_FILE  = File.join(__dir__, "..", "data", "northwestern-agreements.csv")
 JSON_FILE = File.join(__dir__, "..", "html", "data.json")
@@ -25,11 +26,13 @@ HEADER = [
   "Journal Title",
   "eISSN",
   "eISSN Link",
-  "Link to Agreement Info",
+  "Discount or Waiver",
+  "Campuses Covered",
+  "Coverage Years",
 ]
 
 # Columns that are allowed to be blank/null in the output.
-NULL_ALLOWED = ["eISSN", "eISSN Link", "Link to Agreement Info"]
+NULL_ALLOWED = ["eISSN", "eISSN Link", "Coverage Years"]
 
 def abort_with(message)
   warn "build_data: #{message}"
@@ -60,9 +63,12 @@ end
 
 abort_with("no data rows found in #{CSV_FILE}") if data.empty?
 
+# Version is a short content hash of the data so the build is deterministic:
+# it changes only when the data changes, not with the date the build runs
+# (which kept CI's "data.json out of date" check from being reproducible).
 output = {
   "header"  => HEADER,
-  "version" => Time.now.strftime("%Y-%m-%d.1"),
+  "version" => Digest::SHA256.hexdigest(JSON.generate(data))[0, 12],
   "data"    => data,
 }
 
