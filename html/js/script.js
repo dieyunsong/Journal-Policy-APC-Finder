@@ -210,8 +210,10 @@ $(document).ready(function () {
             }
         },
         columns: columns,
-        pageLength: 10,
-        lengthMenu: [5, 10, 25, 50, 100],
+        // Show all rows by default (-1 = "All"); users can still switch to a
+        // paginated view via the length menu.
+        pageLength: -1,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         order: [[0, 'asc']],
         autoWidth: false,
         responsive: true,
