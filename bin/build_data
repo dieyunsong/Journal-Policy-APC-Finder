@@ -16,6 +16,7 @@
 
 require "csv"
 require "json"
+require "digest"
 
 CSV_FILE  = File.join(__dir__, "..", "data", "northwestern-agreements.csv")
 JSON_FILE = File.join(__dir__, "..", "html", "data.json")
@@ -62,9 +63,12 @@ end
 
 abort_with("no data rows found in #{CSV_FILE}") if data.empty?
 
+# Version is a short content hash of the data so the build is deterministic:
+# it changes only when the data changes, not with the date the build runs
+# (which kept CI's "data.json out of date" check from being reproducible).
 output = {
   "header"  => HEADER,
-  "version" => Time.now.strftime("%Y-%m-%d.1"),
+  "version" => Digest::SHA256.hexdigest(JSON.generate(data))[0, 12],
   "data"    => data,
 }
 
