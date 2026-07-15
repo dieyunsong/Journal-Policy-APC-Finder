@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Northwestern Journal Policy &amp; APC Finder</title>
+  <title>Northwestern Open Access &amp; Transformative Agreement Finder</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
   <link href="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.3.2/datatables.min.css" rel="stylesheet"
@@ -26,18 +26,20 @@
     <div class="viewport-container">
       <div class="nu-header__inner">
         <a href="https://www.library.northwestern.edu/" class="nu-header__eyebrow">Northwestern University Libraries</a>
-        <span class="nu-header__title">Journal Policy &amp; APC Finder</span>
+        <span class="nu-header__title">Open Access &amp; Transformative Agreement Finder</span>
       </div>
     </div>
   </header>
   <main>
     <div class="viewport-container mt-5 mb-5" id="maincontent">
-      <h1 class="mb-4">Journal Policy &amp; APC Finder</h1>
+      <h1 class="mb-4">Open Access &amp; Transformative Agreement Finder</h1>
       <p style="max-width:38rem; font-size: 1.125rem;" class="mb-4">
         This site helps <strong>Northwestern-affiliated authors</strong> on the Evanston and Chicago campuses find
         journals where <strong>Article Processing Charges (APCs)</strong> are waived or discounted through
         <strong>open access (OA)</strong> and <strong>transformative agreements (TA)</strong> negotiated by
         <strong>Northwestern University Libraries</strong> and the <strong>Big Ten Academic Alliance (BTAA)</strong>.
+        It lists over 6,000 journals and conference-proceedings series across 12 publishers, with the discount or
+        waiver, the campuses covered, and the agreement's coverage dates for each title.
       </p>
       <p style="max-width:38rem; font-size: 1.125rem;" class="mb-4">Considerations:
       <ul>
@@ -45,10 +47,9 @@
             Northwestern University</strong>. Confirm eligibility and covered article types, follow each journal's
           submission guidelines, and use your Northwestern email address when submitting to avoid verification delays.</li>
         <li style="max-width:38rem; font-size: 1.125rem;"><strong>If a journal is not listed</strong>, it may still be
-          open access or covered by a separate agreement, a departmental membership, or a publisher-wide deal where
-          individual titles are not enumerated here. For some publishers (e.g., Springer Nature, Wiley, ACS, Cambridge,
-          IOP), coverage is listed at the <strong>publisher level</strong> &mdash; use the publisher's own journal
-          finder to confirm a specific title.</li>
+          open access or covered by a separate agreement or departmental membership. Journal lists here come from each
+          publisher's agreement title list and can change &mdash; if in doubt, use the publisher's own journal finder
+          to confirm a specific title.</li>
         <li style="max-width:38rem; font-size: 1.125rem;"><strong>When searching common terms in titles</strong>, the
           results list can be long. Try searching by eISSN for a direct match, or adjust 'Items per page' to see more
           titles at once.</li>
@@ -61,20 +62,41 @@
       </p>
       <hr class="horizontal-line" />
       <div style="overflow-x: auto; width: 100%;">
-        <table id="apcTable" class="m-table" style="min-width: 800px;"></table>
+        <table id="apcTable" class="m-table" style="min-width: 1100px;"></table>
       </div>
       <hr />
+      <h2 id="aboutData">About the data</h2>
       <p style="max-width:38rem;" class="mb-4">
-        <strong id="eissnInfo">EISSNs</strong> link to supplemental information, including associated ISSNs under
-        &ldquo;Identifiers&rdquo; and links to journal websites (URLs) under &ldquo;Links&rdquo; on the ISSN portal.
+        Each row is one journal (or conference-proceedings series) covered by an OA or transformative agreement.
+        Rows are compiled from each publisher's official agreement journal list; agreement terms come from
+        <a href="https://www.library.northwestern.edu/use-the-libraries/research-teaching/open-access-publishing/">Open
+          Access Publishing at Northwestern</a>, the publishers' agreement pages, and the
+        <a href="https://esac-initiative.org/about/transformative-agreements/agreement-registry/">ESAC agreement
+          registry</a>. The columns:
       </p>
+      <ul style="max-width:38rem;" class="mb-4">
+        <li class="mb-2"><strong>Journal Title</strong> &mdash; the journal or proceedings series covered by the
+          agreement.</li>
+        <li class="mb-2"><strong id="eissnInfo">eISSN</strong> &mdash; the journal's electronic ISSN, linking to its
+          record on the ISSN portal (associated print ISSNs under &ldquo;Identifiers&rdquo;, journal website under
+          &ldquo;Links&rdquo;). ACM conference-proceedings series are labeled
+          <em>conference proceedings</em> instead, and a few titles have no registered eISSN.</li>
+        <li class="mb-2"><strong>Publisher</strong> &mdash; the publisher whose agreement covers the title; use the
+          filter above the table to limit results to specific publishers.</li>
+        <li class="mb-2"><strong>Discount or Waiver</strong> &mdash; what the agreement pays: &ldquo;100% APC
+          waiver&rdquo; / &ldquo;100% covered&rdquo; means no APC is charged to the author; other values give the
+          discounted price or per-license terms (e.g., ACS lists different rates by license type).</li>
+        <li class="mb-2"><strong>Campuses Covered</strong> &mdash; which Northwestern campuses (Evanston, Chicago)
+          are eligible under the agreement.</li>
+        <li class="mb-2"><strong>Coverage Years</strong> &mdash; the agreement's active window. Eligibility usually
+          depends on the <em>acceptance or submission date</em> falling inside this window &mdash; check the
+          agreement page if a deal is near its end date.</li>
+        <li class="mb-2"><strong id="agreementInfo">Agreement Info</strong> &mdash; links to the publisher's page
+          describing the agreement, including eligible article types, workflow, and exclusions.</li>
+      </ul>
       <p style="max-width:38rem;" class="mb-4">
-        <strong id="discountOrWaiverInfo">Discount or Waiver Amount</strong> may vary by article type. Check the
-        agreement info for details.
-      </p>
-      <p style="max-width:38rem;" class="mb-4">
-        <strong id="coverageYearsInfo">Coverage Years</strong> generally apply to the article's acceptance date, though
-        some publishers may use the submission date.
+        Coverage is not a guarantee of funding &mdash; some agreements have annual caps or article-type restrictions.
+        Where a value could not be verified it is left blank.
       </p>
       <a href="#apcTable_info" style="text-decoration: none;"><span style="text-decoration: underline;">Return to
           results</span><span style="text-decoration:none !important"> &#9650;</span></a>

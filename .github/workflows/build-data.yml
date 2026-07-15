@@ -24,10 +24,10 @@ jobs:
         run: |
           ruby -rjson -e '
             d = JSON.parse(File.read("html/data.json"))
-            header = ["Publisher","Journal Title","eISSN","eISSN Link","Discount or Waiver","Campuses Covered","Coverage Years"]
+            header = ["Publisher","Journal Title","eISSN","eISSN Link","Discount or Waiver","Campuses Covered","Coverage Years","Link to Agreement Info"]
             raise "header mismatch" unless d["header"] == header
             raise "no rows" if d["data"].empty?
-            d["data"].each_with_index { |r,i| raise "row #{i} wrong length" unless r.length == 7 }
+            d["data"].each_with_index { |r,i| raise "row #{i} wrong length" unless r.length == 8 }
             puts "OK: #{d["data"].length} rows"
           '
       - name: Fail if data.json is out of date with the CSV

@@ -4,13 +4,17 @@
 # version-controlled CSV (data/northwestern-agreements.csv).
 #
 # This replaces the upstream Google-Sheets dependency in bin/update with a
-# reproducible, offline pipeline. The output shape is identical to what the
-# front-end (html/js/script.js) expects:
+# reproducible, offline pipeline. The output shape is what the front-end
+# (html/js/script.js) expects:
 #
 #   { "header": [...8 columns...], "version": "...", "data": [ [ ...8 cells... ], ... ] }
 #
-# Each row is a positional array of 8 strings; empty cells become null. The
-# eISSN and eISSN Link columns are allowed to be null.
+# The CSV carries 7 columns (no eISSN Link); this script inserts the eISSN
+# Link column, generated from the eISSN as an ISSN-portal URL. ACM conference
+# proceedings series carry the placeholder "[conference proceedings]" instead
+# of an eISSN; that becomes the plain label "conference proceedings" with no
+# link. Each output row is a positional array of 8 strings; empty cells become
+# null. Only eISSN and eISSN Link are allowed to be null.
 #
 # Usage: ruby bin/build_data        (run from the repo root)
 
@@ -21,7 +25,17 @@ require "digest"
 CSV_FILE  = File.join(__dir__, "..", "data", "northwestern-agreements.csv")
 JSON_FILE = File.join(__dir__, "..", "html", "data.json")
 
-HEADER = [
+CSV_HEADER = [
+  "Publisher",
+  "Journal Title",
+  "eISSN",
+  "Discount or Waiver",
+  "Campuses Covered",
+  "Coverage Years",
+  "Link to Agreement Info",
+]
+
+OUT_HEADER = [
   "Publisher",
   "Journal Title",
   "eISSN",
@@ -29,36 +43,51 @@ HEADER = [
   "Discount or Waiver",
   "Campuses Covered",
   "Coverage Years",
+  "Link to Agreement Info",
 ]
 
-# Columns that are allowed to be blank/null in the output.
-NULL_ALLOWED = ["eISSN", "eISSN Link", "Coverage Years"]
+ISSN_PATTERN = /\A\d{4}-\d{3}[\dX]\z/
+ISSN_PORTAL  = "https://portal.issn.org/resource/ISSN/"
+PROCEEDINGS_PLACEHOLDER = "[conference proceedings]"
 
 def abort_with(message)
   warn "build_data: #{message}"
   exit 1
 end
 
-rows = CSV.read(CSV_FILE, headers: true)
+rows = CSV.read(CSV_FILE, headers: true, encoding: "UTF-8")
 
 # Validate the header matches exactly (order included).
-unless rows.headers == HEADER
-  abort_with("CSV header mismatch.\n  expected: #{HEADER.inspect}\n  got:      #{rows.headers.inspect}")
+unless rows.headers == CSV_HEADER
+  abort_with("CSV header mismatch.\n  expected: #{CSV_HEADER.inspect}\n  got:      #{rows.headers.inspect}")
 end
 
 data = []
 rows.each_with_index do |row, i|
-  cells = HEADER.map { |col| v = row[col]; v.nil? || v.strip.empty? ? nil : v.strip }
+  cells = CSV_HEADER.map { |col| v = row[col]; v.nil? || v.strip.empty? ? nil : v.strip }
+  publisher, title, eissn, discount, campuses, years, link = cells
 
-  # Required columns must be present.
-  HEADER.each_with_index do |col, idx|
-    next if NULL_ALLOWED.include?(col)
-    if cells[idx].nil?
-      abort_with("row #{i + 2}: required column '#{col}' is blank")
-    end
+  # Every column except eISSN is required.
+  { "Publisher" => publisher, "Journal Title" => title,
+    "Discount or Waiver" => discount, "Campuses Covered" => campuses,
+    "Coverage Years" => years, "Link to Agreement Info" => link }.each do |col, v|
+    abort_with("row #{i + 2}: required column '#{col}' is blank") if v.nil?
   end
 
-  data << cells
+  # Derive the eISSN display value and its ISSN-portal link.
+  eissn_link = nil
+  case eissn
+  when nil
+    # Title-only rows (e.g., Royal Society of Chemistry) have no eISSN.
+  when PROCEEDINGS_PLACEHOLDER
+    eissn = "conference proceedings"
+  when ISSN_PATTERN
+    eissn_link = ISSN_PORTAL + eissn
+  else
+    abort_with("row #{i + 2}: malformed eISSN #{eissn.inspect}")
+  end
+
+  data << [publisher, title, eissn, eissn_link, discount, campuses, years, link]
 end
 
 abort_with("no data rows found in #{CSV_FILE}") if data.empty?
@@ -67,7 +96,7 @@ abort_with("no data rows found in #{CSV_FILE}") if data.empty?
 # it changes only when the data changes, not with the date the build runs
 # (which kept CI's "data.json out of date" check from being reproducible).
 output = {
-  "header"  => HEADER,
+  "header"  => OUT_HEADER,
   "version" => Digest::SHA256.hexdigest(JSON.generate(data))[0, 12],
   "data"    => data,
 }
