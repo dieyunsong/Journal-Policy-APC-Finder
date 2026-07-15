@@ -1,4 +1,4 @@
-# Journal Policy & APC Finder
+# Northwestern University Transformative Agreement Finder
 
 A static web tool that lets **Northwestern-affiliated authors** look up whether a journal is covered by an
 open access (OA) or transformative agreement (TA) negotiated by **Northwestern University Libraries** and the
