@@ -107,7 +107,7 @@ Only needed when the CSV gains journals, or to pick up newer OpenAlex counts:
 
 ```sh
 ruby bin/fetch_openalex   # ~93 requests, about 2 minutes, no API key
-rake                      # tests, then rebuild html/data.json
+rake                      # rebuild html/data.json, then test it
 ```
 
 Then commit `data/openalex-subfields.json` together with `html/data.json`.
@@ -130,15 +130,19 @@ filter useless. See `lib/disciplines.rb` for the reasoning in context.
 
 1. Edit `data/northwestern-agreements.csv` (7 columns as above). The file must be **UTF-8** — if you export
    from Excel, use "CSV UTF-8", not the plain "CSV" format (which writes a legacy encoding and breaks the build).
-2. Regenerate the JSON:
+2. Regenerate the JSON and check it:
 
    ```sh
-   ruby bin/build_data
+   rake
    ```
 
+   `rake` (run from the repo root) is the maintainer's entry point: it rebuilds `html/data.json` and
+   *then* runs the test suite against the file it just built — including a check that the artifact has
+   exactly one row per CSV row. Build first is deliberate; testing first would validate the stale
+   committed `data.json` and pass locally while CI failed. `rake build` runs the build alone.
+
    The build validates the header, requires every column except `eISSN` to be non-blank, and rejects
-   malformed eISSNs. A maintainer's entry point is `rake` (run from the repo root): it runs the test
-   suite first, then this same build step.
+   malformed eISSNs.
 
 3. Commit both the CSV and the regenerated `html/data.json`. CI (`.github/workflows/build-data.yml`) rebuilds
    and validates on every push and fails if `data.json` is out of date with the CSV.
@@ -153,8 +157,8 @@ both GitHub Actions workflows read; this branch was also developed against a loc
 CI's version.
 
 ```sh
-rake                    # tests, then rebuild html/data.json
-rake test               # tests only
+rake                    # rebuild html/data.json, then test it
+rake test               # tests only (against the committed html/data.json)
 rake build              # rebuild html/data.json only, no tests
 ruby bin/fetch_openalex # the only command that touches the network — not a rake
                         # task on purpose, so `rake` stays offline and deterministic

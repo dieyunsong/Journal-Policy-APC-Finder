@@ -178,6 +178,16 @@
       }
       renderPills();
       renderPanel();
+      // renderPanel() replaces the panel's entire innerHTML, which destroys the very
+      // checkbox whose change event brought us here; focus then falls to <body>. That
+      // loses a keyboard or screen-reader user's place after every single selection —
+      // and because the Escape handler below is bound to `container`, focus landing
+      // outside it also stops Escape from closing the panel. So re-find the equivalent
+      // checkbox in the fresh DOM (by its value, the topic id) and restore focus.
+      // Guarded because toggle() is also called from a pill's × button, where the panel
+      // may be closed or showing the area list: only move focus if it is really there.
+      var box = panel.querySelector('input[type=checkbox][value="' + id + '"]');
+      if (box) box.focus();
       if (onChange) onChange(selected.slice());
     }
 

@@ -31,6 +31,13 @@ OUT_FILE = File.join(__dir__, "..", "data", "openalex-subfields.json")
 API = "https://api.openalex.org/sources"
 MAILTO = ENV.fetch("OPENALEX_MAILTO", "scholarlycommunication@northwestern.edu")
 BATCH_SIZE = 50          # OpenAlex caps an OR filter at 50 values
+# Ask for far more results than ISSNs, because a 50-ISSN batch can legitimately match
+# more than 50 sources: OpenAlex sometimes holds duplicate source records for one ISSN.
+# At per-page=50 the surplus fell off the first page and, since this script does not
+# paginate, was dropped without a word — a partial fetch that looks like a clean run.
+# 200 is the API maximum and leaves 4x headroom; the check after each request turns any
+# remaining overflow into a failed run rather than silent data loss.
+PER_PAGE = 200
 PAUSE_SECONDS = 0.2      # be polite even though the pool allows more
 ISSN_PATTERN = /\A\d{4}-\d{3}[\dX]\z/
 
@@ -89,11 +96,22 @@ eissns.each_slice(BATCH_SIZE).with_index do |batch, index|
   # %7C rather than a literal "|": pipes are not legal in a URI, and while Ruby's
   # default parser tolerates them, encoding is correct and version-proof.
   url = "#{API}?filter=issn:#{batch.join('%7C')}" \
-        "&select=id,display_name,issn_l,issn,topics&per-page=#{BATCH_SIZE}" \
+        "&select=id,display_name,issn_l,issn,topics&per-page=#{PER_PAGE}" \
         "&mailto=#{MAILTO}"
   body = get_json(url)
 
-  (body["results"] || []).each do |source|
+  # Refuse to ship a truncated page. meta.count is the total OpenAlex matched; anything
+  # beyond the first page would be silently missing from the snapshot.
+  results = body["results"] || []
+  total = body.dig("meta", "count")
+  if total && total > results.length
+    abort_with("batch #{index + 1} (#{batch.first}..#{batch.last}) matched #{total} " \
+               "sources but the response carried only #{results.length}; the page was " \
+               "truncated. Raise PER_PAGE or add pagination — do not commit a partial " \
+               "snapshot.")
+  end
+
+  results.each do |source|
     subfields = subfields_of(source)
     next if subfields.empty?
 

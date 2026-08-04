@@ -332,7 +332,7 @@ caller and the logic is testable directly. That is the seam the tests aim at.
    successful build with an empty filter.
 4. **CI** (`build-data.yml`): updated header and row-length assertions, plus a step
    running the minitest suite.
-5. **Manual browser check** before merge: Organic Chemistry returns 95 rows, Finance
+5. **Manual browser check** before merge: Organic Chemistry returns 97 rows, Finance
    108, the Engineering & Computer Science area 2,976; clearing returns all 6,147;
    discipline combined with a publisher narrows further; Escape closes the panel and
    returns focus, and arrow keys walk the rows.
