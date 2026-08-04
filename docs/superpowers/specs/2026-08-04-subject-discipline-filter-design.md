@@ -26,41 +26,47 @@ publish in under a Northwestern or BTAA agreement?*
 
 ## Verified data findings
 
-Measured against `data/northwestern-agreements.csv` (6,147 rows) joined to OpenAlex
-subject data. These are the numbers the design is built on, not estimates. They were
-measured from an existing local OpenAlex dump; the Pipeline section below replaces
-that route with an in-repo fetch that reads the same records, so these figures should
-reproduce once `bin/fetch_openalex` runs. Re-verify them then — the assertion in
-Validation is what enforces it.
+Measured against `data/northwestern-agreements.csv` (6,147 rows) joined to the OpenAlex
+subject data this repo actually commits, via `bin/fetch_openalex`. These are observed
+figures, not estimates.
+
+The design was first drafted against a local dump of OpenAlex belonging to the sibling
+repo, and the in-repo fetch turned out **better**: 4,606 of the 4,617 well-formed
+eISSNs match, where the dump reached 4,572. The dump had been fetched with a minimum
+article count, so it omitted smaller journals that a direct ISSN query returns. That
+is why unreachable rows fell from the 39 of the first draft to 8. Article counts drift
+between fetches — one JACS subfield moved 75,003 → 75,007 inside a week — so treat
+exact counts as a snapshot and topic identity as the stable thing. The coverage
+assertion in Validation is what keeps this honest over time.
 
 | How a row gets its topics | Rows |
 |---|---:|
-| The 10%-share rule, from OpenAlex subject data | 4,574 |
+| The 10%-share rule, from OpenAlex subject data | 4,608 |
 | Safety net — matched OpenAlex, but no subfield cleared 10% | 2 |
-| ACM publisher-level fallback | 1,476 |
+| ACM publisher-level fallback | 1,473 |
 | Royal Society of Chemistry publisher-level fallback | 56 |
-| **Reachable by a discipline filter** | **6,108 (99.4%)** |
-| Unreachable: Wiley 21, Cambridge 11, Springer Nature 5, ACS 2 | 39 |
+| **Reachable by a discipline filter** | **6,139 (99.9%)** |
+| Unreachable: Wiley 3, Cambridge 2, ACS 2, Springer Nature 1 | 8 |
 
-1,571 rows have no OpenAlex match at all: 1,470 ACM proceedings placeholders, 56
-blank RSC eISSNs, and 45 real eISSNs absent from OpenAlex. The ACM and RSC
-fallbacks absorb all but 39 of those. With the safety net in place the residue has
+1,537 rows have no OpenAlex match at all: 1,470 ACM proceedings placeholders, 56
+blank RSC eISSNs, and 11 real eISSNs absent from OpenAlex. The ACM and RSC
+fallbacks absorb all but 8 of those. With the safety net in place the residue has
 a clean definition: a row is unreachable exactly when it has no OpenAlex match and
 is not an ACM or RSC title.
 
-Topics populated: 164 of 172. Mean 2.24 topics per row (median 2, max 6).
+Topics populated: 164 of 172. Mean 2.25 topics per row (median 2, max 6).
 
 Journals a researcher would see per broad area:
 
 | Area | Journals | | Sample topic | Journals |
 |---|---:|---|---|---:|
-| Engineering & Computer Science | 2,958 | | Artificial Intelligence | 285 |
-| Health & Medical Sciences | 1,674 | | Oncology | 161 |
-| Life Sciences & Earth Sciences | 1,090 | | Ecology | 275 |
-| Social Sciences | 1,079 | | Sociology | 546 |
-| Business, Economics & Management | 587 | | Finance | 108 |
-| Physics & Mathematics | 572 | | Pure & Applied Mathematics | 108 |
-| Chemical & Material Sciences | 411 | | Organic Chemistry | 95 |
+| Engineering & Computer Science | 2,976 | | Artificial Intelligence | 289 |
+| Health & Medical Sciences | 1,686 | | Oncology | 163 |
+| Life Sciences & Earth Sciences | 1,101 | | Ecology | 275 |
+| Social Sciences | 1,082 | | Sociology | 548 |
+| Business, Economics & Management | 591 | | Finance | 108 |
+| Physics & Mathematics | 576 | | Pure & Applied Mathematics | 108 |
+| Chemical & Material Sciences | 419 | | Organic Chemistry | 97 |
 | Humanities, Literature & Arts | 334 | | History | 54 |
 
 ## Data layer
@@ -135,7 +141,7 @@ fires only when the primary rule returns nothing, so it cannot reduce precision
 anywhere else, and it means the rule degrades gracefully if the agreements later
 add fully-OA megajournals — a live possibility as Wiley's Hindawi titles and
 Springer's OA portfolio move in and out of coverage. The honest caveat is that rows
-tagged this way carry less certain topics than the other 4,574.
+tagged this way carry less certain topics than the other 4,608.
 
 ### Publisher-level fallback
 
@@ -143,7 +149,7 @@ When neither the threshold nor the safety net yields anything — which means th
 had no OpenAlex match at all — assign at the publisher level where the subject is
 unambiguous:
 
-- Publisher contains `ACM` → `engineering-computer-science/general` (1,476 rows).
+- Publisher contains `ACM` → `engineering-computer-science/general` (1,473 rows).
   These are the conference-proceedings rows carrying the `[conference proceedings]`
   eISSN placeholder. OpenAlex does not model conference proceedings as journal
   sources at all, so no better join exists — but ACM is a computing society, so the
@@ -153,7 +159,7 @@ unambiguous:
   (56 rows). These are the known title-only rows with no eISSN. Backfilling those
   eISSNs (an existing project follow-up) would replace this fallback with real topics.
 
-Rows still untagged after the fallback (39) carry no topics and are excluded while a
+Rows still untagged after the fallback (8) carry no topics and are excluded while a
 discipline filter is active. They remain fully visible in the default unfiltered
 view and through search, publisher, and campus filters.
 
@@ -175,7 +181,7 @@ OpenAlex API   (api.openalex.org/sources?filter=issn:…)
         │
         │  bin/fetch_openalex    (new · Ruby · network · run manually, rarely)
         ▼
-  data/openalex-subfields.json   committed · 769 KB · eISSN → [[subfieldId, articleCount], …]
+  data/openalex-subfields.json   committed · 774 KB · eISSN → [[subfieldId, articleCount], …]
   data/crosswalk.json            committed ·  14 KB · OpenAlex subfield id → taxonomy topic
   data/taxonomy.json             committed ·  26 KB · 8 areas, 172 topics
         │
@@ -203,7 +209,7 @@ share no files, and neither can break the other.
 
 Committing the subfield snapshot rather than only the derived topics is what keeps
 the build offline and lets a maintainer retune the threshold or the safety net
-without touching the network. It is 769 KB (205 KB gzipped over the wire), against
+without touching the network. It is 774 KB (about 210 KB gzipped over the wire), against
 an `html/data.json` that is already 1.6 MB. The `data/discipline-tags.json` of the
 earlier draft is dropped: with the snapshot in the repo, a separate derived-tags
 file is a redundant artifact that could silently drift from it.
@@ -297,7 +303,7 @@ not be blocked. Pills wrap.
   from publication data rather than assigned by publishers: topics come from OpenAlex
   subject data for each journal, keeping those accounting for at least 10% of its
   articles; ACM proceedings and Royal Society of Chemistry titles are classified at
-  the publisher level; and 39 titles are unclassified, so they appear only when no
+  the publisher level; and 8 titles are unclassified, so they appear only when no
   discipline is selected.
 
 ## Validation
@@ -317,7 +323,7 @@ caller and the logic is testable directly. That is the seam the tests aim at.
 2. **Build-time assertions in `bin/build_data`** that abort rather than ship bad
    data: every crosswalk target and every tag assigned to a row resolves in the
    taxonomy `tag_list`; every eISSN in `openalex-subfields.json` is well-formed;
-   discipline-reachable coverage is at least 98% (currently 99.4%). It prints a
+   discipline-reachable coverage is at least 98% (currently 99.9%). It prints a
    coverage summary — threshold, safety net, each fallback, and unreachable — so a
    regression is visible in the CI log.
 3. **Golden spot-checks against the built `html/data.json`**, asserting the titles
@@ -327,7 +333,7 @@ caller and the logic is testable directly. That is the seam the tests aim at.
 4. **CI** (`build-data.yml`): updated header and row-length assertions, plus a step
    running the minitest suite.
 5. **Manual browser check** before merge: Organic Chemistry returns 95 rows, Finance
-   108, the Engineering & Computer Science area 2,958; clearing returns all 6,147;
+   108, the Engineering & Computer Science area 2,976; clearing returns all 6,147;
    discipline combined with a publisher narrows further; Escape closes the panel and
    returns focus, and arrow keys walk the rows.
 
@@ -387,7 +393,7 @@ ruby bin/fetch_openalex # only to refresh subject data (network, ~2 min)
 - Curate the 1,470 ACM proceedings to real topics from their series names (KDD,
   ASPLOS, SIGGRAPH …), replacing the publisher-level area assignment.
 - Backfill the 56 Royal Society of Chemistry eISSNs, which retires that fallback.
-- Chase the 39 unreachable rows (Wiley 21, Cambridge 11, Springer Nature 5, ACS 2) —
+- Chase the 8 unreachable rows (Wiley 3, Cambridge 2, ACS 2, Springer Nature 1) —
   each has a real eISSN that OpenAlex does not carry, so each needs a look.
 - Note in the README that the two sites intentionally use different tag rules, so
   the divergence is not later "fixed" into consistency.

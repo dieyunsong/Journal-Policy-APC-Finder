@@ -16,7 +16,7 @@
 - `bin/build_data` must stay **offline and deterministic**: no network, no clock, no randomness. CI runs it then asserts `git diff --exit-code html/data.json`.
 - **Ruby stdlib only.** No new gems. `Gemfile` is being emptied of its last two gems in Task 1, not added to.
 - Threshold constant: `0.10`. Safety-net cap: `3` topics. Fallback topics: ACM → `engineering-computer-science/general`, Royal Society of Chemistry → `chemical-material-sciences/general`.
-- Coverage floor asserted by the build: **98%** of rows must be discipline-reachable (measured: 99.4%).
+- Coverage floor asserted by the build: **98%** of rows must be discipline-reachable (measured: 99.9%).
 - `html/data.json` row length becomes **9**; `header` length becomes **9** (9th name: `Disciplines`). Existing indices 0–7 must not move.
 - The discipline picker allows **unlimited** selections (deliberate divergence from the sibling repo's cap of 3).
 - Empty discipline selection means **show everything** (opposite of the Publisher filter, where empty means show nothing).
@@ -28,11 +28,11 @@
 | Check | Expected |
 |---|---|
 | Total rows | 6,147 |
-| Discipline-reachable | ≥ 6,050 (measured 6,108 = 99.4%) |
+| Discipline-reachable | ≥ 6,050 (measured 6,139 = 99.9%) |
 | Topics populated | ~164 of 172 |
-| Organic Chemistry | ~95 rows |
+| Organic Chemistry | ~97 rows |
 | Finance | ~108 rows |
-| Engineering & Computer Science area | ~2,958 rows |
+| Engineering & Computer Science area | ~2,976 rows |
 
 Counts are approximate because OpenAlex article counts drift between fetches (observed: a JACS subfield moved 75,003 → 75,007 in a week). Assert *topic identity* exactly and *row counts* loosely.
 
@@ -695,7 +695,7 @@ The only script in the project that touches the network. Run manually, rarely.
 
 **Files:**
 - Create: `bin/fetch_openalex`
-- Create (generated, committed): `data/openalex-subfields.json` (~769 KB)
+- Create (generated, committed): `data/openalex-subfields.json` (~774 KB)
 - Test: `test/test_openalex_snapshot.rb`
 
 **Interfaces:**
@@ -848,9 +848,9 @@ Expected, taking about two minutes:
 
 ```
 fetch_openalex: 4617 distinct eISSNs to look up
-  batch 93/93, 4572 journals matched
-fetch_openalex: matched 4572 of 4617 eISSNs (99.0%)
-fetch_openalex: wrote /…/data/openalex-subfields.json (769 KB)
+  batch 93/93, 4606 journals matched
+fetch_openalex: matched 4606 of 4617 eISSNs (99.8%)
+fetch_openalex: wrote /…/data/openalex-subfields.json (774 KB)
 ```
 
 The match count may drift by a few either way as OpenAlex adds records. If it comes
@@ -992,7 +992,7 @@ CROSSWALK_FILE = File.join(__dir__, "..", "data", "crosswalk.json")
 SUBFIELDS_FILE = File.join(__dir__, "..", "data", "openalex-subfields.json")
 
 # Abort rather than ship a build where the discipline filter reaches less of the
-# data than expected. Measured at 99.4%; the floor catches a broken join, which
+# data than expected. Measured at 99.9%; the floor catches a broken join, which
 # would otherwise look like a successful build with a filter that finds nothing.
 MIN_REACHABLE_SHARE = 0.98
 ```
@@ -1126,7 +1126,7 @@ Expected, give or take a few rows as OpenAlex drifts:
 
 ```
 build_data: wrote 6147 rows to /…/html/data.json
-build_data: disciplines — 4576 from OpenAlex, 1532 from a publisher fallback, 39 unreachable (99.4% reachable, 164 topics in use)
+build_data: disciplines — 4610 from OpenAlex, 1529 from a publisher fallback, 8 unreachable (99.9% reachable, 164 topics in use)
 ```
 
 If it aborts on the coverage floor, the snapshot from Task 4 is incomplete — re-run
@@ -1346,10 +1346,10 @@ untouched.
 
 The build now aborts rather than shipping bad data: crosswalk targets and row tags
 must exist in the taxonomy, and at least 98% of rows must be reachable by a
-discipline filter (currently 99.4%). It prints which branch of the rule tagged how
+discipline filter (currently 99.9%). It prints which branch of the rule tagged how
 many rows, so a regression is visible in the CI log.
 
-Coverage: 4,576 rows from OpenAlex, 1,532 from a publisher fallback, 39
+Coverage: 4,610 rows from OpenAlex, 1,529 from a publisher fallback, 8
 unreachable, 164 topics in use.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
@@ -2049,7 +2049,7 @@ With the static server from Task 6 running (`ruby -run -e httpd html -p 8000 &` 
 [ ] The table loads 6,147 rows and "Filter by Discipline" appears beside "Filter by Publisher".
 [ ] The picker opens to 8 areas, each showing a topic count.
 [ ] Clicking "Chemical & Material Sciences" drills in; "‹ All areas" goes back.
-[ ] Selecting "Organic Chemistry" (~95) filters the table to about that many rows.
+[ ] Selecting "Organic Chemistry" (~97) filters the table to about that many rows.
 [ ] The summary banner reads "Filtering by 1 discipline".
 [ ] Adding "Finance" widens the result (OR), not narrows it.
 [ ] A 4th and 5th selection are accepted — no cap.
@@ -2068,7 +2068,7 @@ const dt = $('#apcTable').DataTable();
 console.log('visible now:', dt.rows({ search: 'applied' }).count());
 ```
 
-Expected: 6,147 with nothing selected; roughly 95 with only Organic Chemistry
+Expected: 6,147 with nothing selected; roughly 97 with only Organic Chemistry
 selected. If a count is wildly off, do not adjust the test — find out why.
 
 - [ ] **Step 12: Confirm the build is still clean, then commit**
@@ -2246,9 +2246,9 @@ precision — uncapped, "Aviation & Aerospace Engineering" matched 1,458 of the
 taggable rows. The README and `lib/disciplines.rb` both record why, so the two
 sites are not later "fixed" into agreement.
 
-Coverage: 99.4% of rows reachable by a discipline filter. ACM proceedings and RSC
+Coverage: 99.9% of rows reachable by a discipline filter. ACM proceedings and RSC
 titles are classified at the publisher level since OpenAlex has no per-title record
-for them; 39 titles remain unclassified and appear only when no discipline is
+for them; 8 titles remain unclassified and appear only when no discipline is
 selected.
 
 ## Self-sufficiency
@@ -2289,7 +2289,7 @@ EOF
 
 **Deviations from the spec, resolved here.** The spec named a `test/test_discipline_tags.rb`; the file is `test/test_disciplines.rb`, matching `lib/disciplines.rb`. The spec left the CSS variable question open; Task 6 aliases the five semantic names onto the existing palette and omits the sibling's dark-mode rule, since this site is light-only. The spec described `tag_list` as all 172 topics; Task 5 emits only the ~164 in use so tag ids stay dense, and Task 6's builder drops zero-count topics regardless.
 
-**Known approximations.** Row counts in expected output (4,576 / 1,532 / 39 / 164) will drift slightly as OpenAlex updates. Assertions are written as ranges or floors for counts and exact only for topic identity.
+**Known approximations.** Row counts in expected output (4,610 / 1,529 / 8 / 164) will drift slightly as OpenAlex updates. Assertions are written as ranges or floors for counts and exact only for topic identity.
 
 **Verified against real data while writing this plan**, so the numbers in assertions are not guesses: 161 ACM rows carry a real eISSN and 155 of them resolve to topics more specific than the publisher-level area (Task 5's precedence test asserts ≥100 for both); the widest row carries 6 topics (asserted ≤8); all 8 areas are represented; every topic slug and journal title named in a golden test exists; `URI()` tolerates literal `|` but the fetch encodes it as `%7C` anyway; and aggregating a live OpenAlex response reproduces the JACS topics exactly.
 
