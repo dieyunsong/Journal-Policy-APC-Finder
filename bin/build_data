@@ -7,23 +7,35 @@
 # reproducible, offline pipeline. The output shape is what the front-end
 # (html/js/script.js) expects:
 #
-#   { "header": [...8 columns...], "version": "...", "data": [ [ ...8 cells... ], ... ] }
+#   { "header": [...9 columns...], "version": "...", "taxonomy": {...}, "data": [ [ ...9 cells... ], ... ] }
 #
 # The CSV carries 7 columns (no eISSN Link); this script inserts the eISSN
 # Link column, generated from the eISSN as an ISSN-portal URL. ACM conference
 # proceedings series carry the placeholder "[conference proceedings]" instead
 # of an eISSN; that becomes the plain label "conference proceedings" with no
-# link. Each output row is a positional array of 8 strings; empty cells become
-# null. Only eISSN and eISSN Link are allowed to be null.
+# link. Each output row is a positional array of 9 elements: the first 8 are
+# strings (empty cells become null; only eISSN and eISSN Link are allowed to be
+# null), and the 9th ("Disciplines") is an Array<Integer> of topic ids indexing
+# into the top-level "taxonomy"."tag_list" array.
 #
 # Usage: ruby bin/build_data        (run from the repo root)
 
 require "csv"
 require "json"
 require "digest"
+require_relative "../lib/disciplines"
 
 CSV_FILE  = File.join(__dir__, "..", "data", "northwestern-agreements.csv")
 JSON_FILE = File.join(__dir__, "..", "html", "data.json")
+
+TAXONOMY_FILE  = File.join(__dir__, "..", "data", "taxonomy.json")
+CROSSWALK_FILE = File.join(__dir__, "..", "data", "crosswalk.json")
+SUBFIELDS_FILE = File.join(__dir__, "..", "data", "openalex-subfields.json")
+
+# Abort rather than ship a build where the discipline filter reaches less of the
+# data than expected. Measured at 99.9%; the floor catches a broken join, which
+# would otherwise look like a successful build with a filter that finds nothing.
+MIN_REACHABLE_SHARE = 0.98
 
 CSV_HEADER = [
   "Publisher",
@@ -44,6 +56,8 @@ OUT_HEADER = [
   "Campuses Covered",
   "Coverage Years",
   "Link to Agreement Info",
+  # Data only — the front end filters on this and renders no column for it.
+  "Disciplines",
 ]
 
 ISSN_PATTERN = /\A\d{4}-\d{3}[\dX]\z/
@@ -61,6 +75,29 @@ rows = CSV.read(CSV_FILE, headers: true, encoding: "UTF-8")
 unless rows.headers == CSV_HEADER
   abort_with("CSV header mismatch.\n  expected: #{CSV_HEADER.inspect}\n  got:      #{rows.headers.inspect}")
 end
+
+begin
+  taxonomy  = JSON.parse(File.read(TAXONOMY_FILE))
+  crosswalk = JSON.parse(File.read(CROSSWALK_FILE))
+  subfields_by_eissn = JSON.parse(File.read(SUBFIELDS_FILE)).fetch("by_eissn")
+rescue Errno::ENOENT, JSON::ParserError, KeyError => e
+  abort_with("could not load reference data (#{e.message}). Confirm " \
+             "#{TAXONOMY_FILE}, #{CROSSWALK_FILE}, and #{SUBFIELDS_FILE} exist and " \
+             "are well-formed; re-run `ruby bin/fetch_openalex` if the OpenAlex " \
+             "snapshot is missing or stale.")
+end
+
+known_topics = taxonomy.fetch("tag_list")
+crosswalk.each do |subfield_id, slug|
+  unless known_topics.include?(slug)
+    abort_with("crosswalk maps subfield #{subfield_id} to #{slug.inspect}, " \
+               "which is not in #{TAXONOMY_FILE}")
+  end
+end
+
+# Counts per branch of the tagging rule, reported at the end so a coverage
+# regression is visible in the build log and in CI.
+tag_stats = Hash.new(0)
 
 data = []
 rows.each_with_index do |row, i|
@@ -87,19 +124,65 @@ rows.each_with_index do |row, i|
     abort_with("row #{i + 2}: malformed eISSN #{eissn.inspect}")
   end
 
-  data << [publisher, title, eissn, eissn_link, discount, campuses, years, link]
+  # Subject topics. The eISSN key is the raw CSV value, which is why this reads
+  # `cells[2]` rather than the `eissn` local — that has already been rewritten to
+  # the "conference proceedings" label for ACM proceedings rows.
+  slugs, tag_source = Disciplines.tags_for(subfields_by_eissn[cells[2]], crosswalk,
+                                           publisher)
+  tag_stats[tag_source] += 1
+
+  data << [publisher, title, eissn, eissn_link, discount, campuses, years, link, slugs]
 end
 
 abort_with("no data rows found in #{CSV_FILE}") if data.empty?
+
+# Intern topic slugs to integer ids indexing into tag_list, so 6,147 rows carry
+# small integers instead of repeating long strings.
+tag_ids = {}
+tag_counts = Hash.new(0)
+data.each do |row|
+  row[8] = row[8].map do |slug|
+    id = (tag_ids[slug] ||= tag_ids.length)
+    tag_counts[id] += 1
+    id
+  end
+end
+
+tag_ids.each_key do |slug|
+  unless known_topics.include?(slug)
+    abort_with("row tagged with #{slug.inspect}, which is not in #{TAXONOMY_FILE}")
+  end
+end
+
+reachable = data.count { |row| !row[8].empty? }
+share = reachable.to_f / data.length
+if share < MIN_REACHABLE_SHARE
+  abort_with(format("only %.1f%% of rows (%d of %d) can be reached by a discipline " \
+                    "filter; floor is %.0f%%. Re-run `ruby bin/fetch_openalex`?",
+                    share * 100, reachable, data.length, MIN_REACHABLE_SHARE * 100))
+end
+
+# tag_list must be ordered so that tag_list[id] is the slug for that id.
+ordered_tag_list = tag_ids.keys
+taxonomy_out = {
+  "areas" => taxonomy.fetch("areas"),
+  "tag_list" => ordered_tag_list,
+  "tag_counts" => tag_counts.transform_keys(&:to_s),
+}
 
 # Version is a short content hash of the data so the build is deterministic:
 # it changes only when the data changes, not with the date the build runs
 # (which kept CI's "data.json out of date" check from being reproducible).
 output = {
-  "header"  => OUT_HEADER,
-  "version" => Digest::SHA256.hexdigest(JSON.generate(data))[0, 12],
-  "data"    => data,
+  "header"   => OUT_HEADER,
+  "version"  => Digest::SHA256.hexdigest(JSON.generate([data, taxonomy_out]))[0, 12],
+  "taxonomy" => taxonomy_out,
+  "data"     => data,
 }
 
 File.write(JSON_FILE, JSON.generate(output))
 puts "build_data: wrote #{data.length} rows to #{File.expand_path(JSON_FILE)}"
+puts format("build_data: disciplines — %d from OpenAlex, %d from a publisher " \
+            "fallback, %d unreachable (%.1f%% reachable, %d topics in use)",
+            tag_stats[:openalex], tag_stats[:publisher_fallback],
+            tag_stats[:unreachable], share * 100, ordered_tag_list.length)

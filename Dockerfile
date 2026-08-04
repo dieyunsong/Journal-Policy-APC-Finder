@@ -30,7 +30,7 @@ COPY --chown=${UNAME}:${UNAME} . ${APP_HOME}
 
 USER ${UNAME}
 
-CMD ["bin/update"]
+CMD ["bin/build_data"]
 
 FROM httpd:latest@sha256:bdba5c86022f2d6ad0783168b07fe80541fe45e97b434b13ba8c959a5050fb6b AS base
 

@@ -3,5 +3,7 @@
 
 source "https://rubygems.org"
 
-gem "json-schema"
-gem "google_drive"
+# Intentionally empty. The build (bin/build_data), the OpenAlex fetch
+# (bin/fetch_openalex), and the tests all use the Ruby standard library only, so a
+# clone needs no `bundle install`. The google_drive and json-schema gems were
+# dropped with bin/update, the retired Google-Sheets importer.

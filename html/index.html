@@ -83,6 +83,15 @@
           <em>conference proceedings</em> instead, and a few titles have no registered eISSN.</li>
         <li class="mb-2"><strong>Publisher</strong> &mdash; the publisher whose agreement covers the title; use the
           filter above the table to limit results to specific publishers.</li>
+        <li class="mb-2"><strong id="disciplineInfo">Disciplines</strong> &mdash; used by the
+          <em>Filter by Discipline</em> control above the table; there is no discipline column in the results.
+          Subjects are <strong>derived from publication data, not assigned by publishers</strong>: each journal is
+          described by the subject areas its articles fall into according to
+          <a href="https://openalex.org/">OpenAlex</a>, and a subject is kept when it accounts for at least 10% of
+          that journal's articles. ACM conference-proceedings series and Royal Society of Chemistry titles are
+          classified at the publisher level, because OpenAlex does not describe them individually. Eight titles
+          have no classification and appear only when no discipline is selected. Treat the subjects as a way to
+          browse, not as an authoritative statement of a journal's scope.</li>
         <li class="mb-2"><strong>Discount or Waiver</strong> &mdash; what the agreement pays: &ldquo;100% APC
           waiver&rdquo; / &ldquo;100% covered&rdquo; means no APC is charged to the author; other values give the
           discounted price or per-license terms (e.g., ACS lists different rates by license type).</li>
@@ -148,6 +157,7 @@
   <script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.3.2/datatables.min.js"
     integrity="sha384-qLLX0jMaWXMZrun5/ry13tv5MX78CJNleGaaJVXRuJCDiAwyjhYWsTM3Qk3VaKC3"
     crossorigin="anonymous"></script>
+  <script src="js/discipline-picker.js"></script>
   <script src="js/script.js"></script>
 </body>
 

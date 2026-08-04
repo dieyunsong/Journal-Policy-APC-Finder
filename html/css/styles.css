@@ -598,3 +598,155 @@ h1 {
     height: 1px;
     overflow: hidden;
 }
+
+/* ---- Discipline picker ----------------------------------------------------
+   Ported with the picker from the companion Journal-Policy-Finder repo. That
+   stylesheet uses semantic custom properties; rather than rewrite every rule
+   (which would make the two hard to re-sync), the five it needs are aliased here
+   onto this site's Northwestern palette. The sibling's dark-mode rule is omitted
+   deliberately: this site is light-only, and a dark panel on a light page reads
+   as a bug. */
+:root {
+  --accent: var(--color-teal-400);
+  --muted: var(--color-neutral-300);
+  --rule: var(--color-neutral-100);
+  --surface: #fff;
+  --surface-2: var(--color-teal-100);
+}
+
+.picker { position: relative; }
+
+.picker-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.picker-control:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(78, 42, 132, 0.14);
+}
+
+.picker-open {
+  flex: 1 1 8rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 0;
+  padding: 0.3rem 0.2rem;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+}
+.picker-control.has-pills .picker-open { flex-basis: 6rem; }
+.picker-caret { opacity: 0.6; }
+
+/* Pills sit directly in the control's flex flow rather than in a nested box. */
+.picker-pills { display: contents; }
+
+.picker-open-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.pill-x {
+  border: 0;
+  background: rgba(255, 255, 255, 0.22);
+  color: inherit;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: grid;
+  place-items: center;
+}
+.pill-x:hover { background: rgba(255, 255, 255, 0.4); }
+
+.picker-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 19rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.picker-list { list-style: none; margin: 0; padding: 0.25rem; }
+
+.picker-area,
+.picker-topic {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.picker-area { justify-content: space-between; }
+.picker-area:hover,
+.picker-topic:hover,
+.picker-area:focus-visible,
+.picker-topic:focus-within { background: var(--surface-2); }
+
+.picker-topic span:first-of-type { flex: 1 1 auto; }
+
+.picker-meta {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.picker-crumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+.picker-back {
+  border: 0;
+  background: none;
+  padding: 0.15rem 0.3rem;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.picker-back:hover { text-decoration: underline; }
+.picker-crumb-area { font-weight: 600; font-size: 0.9rem; }
