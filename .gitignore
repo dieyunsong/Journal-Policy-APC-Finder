@@ -1,1 +1,6 @@
-/credentials.json64
+.DS_Store
+
+# Raw publisher spreadsheets: data quality still in progress, and this repo is
+# public. Revisit once the underlying data settles.
+IOP-ACS-ACM.xlsx
+master list of ACS subscriptions.xls
