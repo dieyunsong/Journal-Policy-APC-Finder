@@ -309,25 +309,32 @@ end
 class TestSafetyNet < Minitest::Test
   CROSSWALK = TestTopicsFor::CROSSWALK
 
-  # A megajournal spread so evenly that nothing clears 10%: 12 equal subfields at
-  # 8.3% each. Without the net this journal would carry no topics at all.
-  def evenly_spread
-    ids = %w[1605 1606 1312 2202 9999]
-    ids.each_with_index.map { |id, i| [id, 100 - i] } +
-      (1..7).map { |n| ["80#{n}", 95] }
+  # A megajournal spread across 12 subfields so evenly that the largest is only
+  # 8.7% of its output. Without the net this journal would carry no topics at all
+  # and would vanish from every discipline filter. The trailing 80xx ids are
+  # deliberately absent from CROSSWALK: they dilute the total without adding
+  # topics, which is what real unmapped OpenAlex subfields do.
+  EVENLY_SPREAD = [
+    ["1605", 100], ["1606", 99], ["1312", 98], ["2202", 97], ["9999", 96],
+    ["8001", 95], ["8002", 95], ["8003", 95], ["8004", 95], ["8005", 95],
+    ["8006", 95], ["8007", 95],
+  ].freeze
+
+  def test_the_fixture_really_has_no_subfield_clearing_ten_percent
+    # Guards the guard: if this fixture ever drifts above the threshold, the test
+    # below would silently stop exercising the safety net at all.
+    total = EVENLY_SPREAD.sum { |(_, count)| count }
+    largest = EVENLY_SPREAD.map { |(_, count)| count }.max
+    assert_operator largest.to_f / total, :<, 0.10,
+                    "fixture's largest subfield is #{largest}/#{total}"
   end
 
   def test_falls_back_to_the_three_largest_mapped_subfields
-    subfields = [["1605", 90], ["1606", 80], ["1312", 70], ["2202", 60], ["9999", 50],
-                 ["8001", 55], ["8002", 55], ["8003", 55], ["8004", 55], ["8005", 55],
-                 ["8006", 55], ["8007", 55]]
-    refute subfields.any? { |(_, c)| c.to_f / subfields.sum { |(_, x)| x } >= 0.10 },
-           "fixture must have no subfield clearing 10%"
     assert_equal [
       "chemical-material-sciences/organic-chemistry",
       "chemical-material-sciences/general",
       "life-sciences-earth-sciences/molecular-biology",
-    ], Disciplines.topics_for(subfields, CROSSWALK)
+    ], Disciplines.topics_for(EVENLY_SPREAD, CROSSWALK)
   end
 
   def test_net_does_not_fire_when_the_threshold_produced_something
