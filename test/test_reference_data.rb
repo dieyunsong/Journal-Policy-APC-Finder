@@ -25,6 +25,13 @@ class TestReferenceData < Minitest::Test
            "tag_counts must be computed from this repo's rows by bin/build_data"
   end
 
+  def test_taxonomy_carries_only_the_keys_this_repo_uses
+    # A verbatim copy from the sibling repo also brought 196 KB of publisher
+    # homepage data it uses for its own features. Pinning the key set is what
+    # catches an over-inclusive copy, not just a partial one.
+    assert_equal Set["areas", "tag_list"], taxonomy.keys.to_set
+  end
+
   def test_every_tag_list_entry_resolves_to_an_area_and_a_subcategory
     taxonomy["tag_list"].each do |slug|
       area_id, sub = slug.split("/", 2)
