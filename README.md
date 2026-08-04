@@ -60,13 +60,71 @@ Where a value could not be verified it is left blank.
 
 - `html/` is a fully static site (HTML + vanilla JS + DataTables + Bootstrap). No backend; all search and
   filtering happen in the browser.
-- The site reads `html/data.json`, an object of the form `{ "header": [...], "version": "...", "data": [[...]] }`
-  where each row is a positional array of 8 strings (`eISSN` / `eISSN Link` may be `null`):
+- The site reads `html/data.json`, an object of the form
+  `{ "header": [...], "version": "...", "taxonomy": {...}, "data": [[...]] }`
+  where each row is a positional array of 9 elements — the 8 columns below
+  (`eISSN` / `eISSN Link` may be `null`) plus an array of discipline topic ids:
 
-  `Publisher | Journal Title | eISSN | eISSN Link | Discount or Waiver | Campuses Covered | Coverage Years | Link to Agreement Info`
+  `Publisher | Journal Title | eISSN | eISSN Link | Discount or Waiver | Campuses Covered | Coverage Years | Link to Agreement Info | Disciplines`
 
 - `html/data.json` is **generated** from the CSV by `bin/build_data`. The `version` field is a short content
   hash of the data, so rebuilding unchanged data is byte-for-byte reproducible.
+
+## Subject data (the discipline filter)
+
+Each row carries subject topics, which drive the **Filter by Discipline** control.
+The site holds no discipline column; the topics exist only to filter.
+
+Topics come from [OpenAlex](https://openalex.org/), not from publishers. For each
+journal, OpenAlex reports the subject areas its articles fall into; a subject
+becomes a topic when it accounts for **at least 10% of that journal's articles**.
+Journals spread so evenly that nothing clears 10% keep their three largest subjects
+instead. ACM conference-proceedings series and Royal Society of Chemistry titles are
+classified at the publisher level, because OpenAlex has no per-title record for
+them — proceedings are not journals to OpenAlex, and the RSC rows carry no eISSN to
+join on. **6,139 of the 6,147 rows (99.9%) end up reachable by a discipline filter**;
+the remaining 8 carry no classification and appear only when no discipline is selected.
+
+The vocabulary is a Google Scholar-derived taxonomy of 8 broad areas and 172 topics,
+in `data/taxonomy.json`. `data/crosswalk.json` maps OpenAlex subject ids onto it.
+Both are vendored copies of files from the companion Journal-Policy-Finder repo,
+stripped of that project's own keys. Of the 172 topics, 164 have at least one covered
+journal; the build offers only those, so no topic in the picker returns nothing.
+
+### Files
+
+| File | Committed? | What it is |
+|---|---|---|
+| `data/openalex-subfields.json` | yes | Snapshot of OpenAlex subject counts per eISSN (~774 KB) |
+| `data/taxonomy.json` | yes | The 8 areas and 172 topics (~26 KB) |
+| `data/crosswalk.json` | yes | OpenAlex subject id → topic |
+| `lib/disciplines.rb` | yes | The tagging rule (threshold, safety net, fallbacks) |
+| `bin/fetch_openalex` | yes | Refreshes the snapshot. **The only script that uses the network.** |
+
+### Refreshing it
+
+Only needed when the CSV gains journals, or to pick up newer OpenAlex counts:
+
+```sh
+ruby bin/fetch_openalex   # ~93 requests, about 2 minutes, no API key
+rake                      # tests, then rebuild html/data.json
+```
+
+Then commit `data/openalex-subfields.json` together with `html/data.json`.
+
+`bin/build_data` never touches the network — it reads only committed files, so CI
+can rebuild `data.json` and assert the result is byte-for-byte identical.
+
+### A deliberate difference from the companion site
+
+[Journal-Policy-Finder](https://github.com/dieyunsong/Journal-Policy-Finder) shares
+this taxonomy but tags journals differently: it keeps **every** subject a journal
+touches (about 12 topics per journal), while this site keeps only those above 10%
+(about 2). That is not an inconsistency to fix. That tool searches 52,714 journals
+and needs recall, so no journal is ever unfindable. This one filters 6,147 rows that
+are all actionable and needs precision: under the uncapped rule, "Aviation &
+Aerospace Engineering" matched 1,458 of the taggable rows here, which makes the
+filter useless. See `lib/disciplines.rb` for the reasoning in context.
 
 ## Editing the data
 
@@ -79,7 +137,8 @@ Where a value could not be verified it is left blank.
    ```
 
    The build validates the header, requires every column except `eISSN` to be non-blank, and rejects
-   malformed eISSNs.
+   malformed eISSNs. A maintainer's entry point is `rake` (run from the repo root): it runs the test
+   suite first, then this same build step.
 
 3. Commit both the CSV and the regenerated `html/data.json`. CI (`.github/workflows/build-data.yml`) rebuilds
    and validates on every push and fails if `data.json` is out of date with the CSV.
@@ -107,5 +166,6 @@ here must be re-applied there.
 ## Out of scope (not yet configured)
 
 - Deployment to Northwestern-owned hosting (the original U-M S3/CloudFront and Google-Sheets workflows were removed).
-- An automated refresh from a Northwestern-maintained spreadsheet (the legacy `bin/update` Google-Sheets path
-  remains in the repo for reference but is not wired up).
+- An automated refresh from a Northwestern-maintained spreadsheet. The legacy
+  `bin/update` Google-Sheets importer was removed (see git history) — it required
+  credentials that were never configured, and `bin/build_data` replaced it.
