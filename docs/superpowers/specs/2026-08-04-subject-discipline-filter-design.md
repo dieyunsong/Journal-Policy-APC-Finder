@@ -20,14 +20,19 @@ BTAA agreement?*
 - No fine-grained subject tagging of ACM conference proceedings; they are classified
   at the publisher level. Curating the 1,470 series names is separate future work.
 - No change to the CSV schema, the search box, or the existing filters' behavior.
-- No network access at build time or page load. The OpenAlex join happens once,
-  offline, and its result is committed.
+- No network access from `bin/build_data` or from the page. Fetching subject data is
+  a separate, manual, rarely-run script whose output is committed.
+- No dependency on any other repo or on any one person's machine (see Pipeline and
+  Setup fixes).
 
 ## Verified data findings
 
-Measured against `data/northwestern-agreements.csv` (6,147 rows) joined to the
-OpenAlex source dump in the Journal-Policy-Finder checkout. These are the numbers
-the design is built on, not estimates.
+Measured against `data/northwestern-agreements.csv` (6,147 rows) joined to OpenAlex
+subject data. These are the numbers the design is built on, not estimates. They were
+measured from an existing local OpenAlex dump; the Pipeline section below replaces
+that route with an in-repo fetch that reads the same records, so these figures should
+reproduce once `bin/fetch_openalex` runs. Re-verify them then — the assertion in
+Validation is what enforces it.
 
 | How a row gets its topics | Rows |
 |---|---:|
@@ -146,49 +151,54 @@ view and through search, publisher, and campus filters.
 
 ### Pipeline
 
-`bin/build_data` must stay offline, deterministic, and Ruby-only — CI runs
-`ruby/setup-ruby` and nothing else, and the `build-data.yml` workflow asserts
-`html/data.json` is in sync with its inputs. The OpenAlex join cannot live there:
-its largest input is `build/sources.jsonl` in the Journal-Policy-Finder checkout,
-136 MB, gitignored there, and only regenerable by paging the OpenAlex API.
+The governing constraint is that this repo is being handed to developers and
+technical teams to maintain. Someone who clones it — with no sibling checkout and
+no access to the original author's machine — must be able to rebuild
+`html/data.json` offline and refresh the subject data with one documented command.
 
-So the join runs once in its own script and its output is committed:
+The offline half is not merely nice to have: `build-data.yml` runs
+`ruby bin/build_data` and then `git diff --exit-code html/data.json`, so the build
+must be deterministic and network-free or CI flakes.
+
+So the OpenAlex dependency splits in two, and every input lives in this repo:
 
 ```
-Journal-Policy-Finder (local checkout, not a dependency at build time)
-  build/sources.jsonl        136 MB, gitignored, regenerable via its fetch_openalex
-  scripts/crosswalk.json     committed there
-  html/data/taxonomy.json    committed there
+OpenAlex API   (api.openalex.org/sources?filter=issn:…)
         │
-        │  bin/build_discipline_tags   (new, Ruby, one-shot, manual)
+        │  bin/fetch_openalex    (new · Ruby · network · run manually, rarely)
         ▼
-TA-Finder
-  data/taxonomy.json         committed copy of the taxonomy
-  data/discipline-tags.json  committed: eISSN → topic slugs, plus provenance
+  data/openalex-subfields.json   committed · 769 KB · eISSN → [[subfieldId, articleCount], …]
+  data/crosswalk.json            committed ·  14 KB · OpenAlex subfield id → taxonomy topic
+  data/taxonomy.json             committed · 225 KB · 8 areas, 172 topics
         │
-        │  bin/build_data              (existing, extended)
+        │  bin/build_data        (existing, extended · offline · deterministic)
         ▼
-  html/data.json             tags per row + taxonomy with TA-derived counts
+  html/data.json                 topics per row + taxonomy with TA-derived counts
 ```
 
-`bin/build_discipline_tags` is written in Ruby rather than Python to keep the repo
-single-language and CI unchanged. It takes the path to the Journal-Policy-Finder
-checkout, and records the SHA-256 of all three inputs plus the threshold in its
-output, so a future refresh is a documented command rather than lost knowledge.
+`bin/fetch_openalex` reads the eISSNs out of the CSV (4,617 distinct and
+well-formed), queries `sources?filter=issn:A|B|C…` in batches of 50, and keeps each
+source's subfield article counts. Verified against the live API: 50 ISSNs per
+request in about a second, so 93 requests refresh everything in roughly two
+minutes. No API key is needed — just a `mailto` for OpenAlex's polite pool.
 
-`data/discipline-tags.json`:
+This replaces an earlier draft that joined against the Journal Policy Finder's
+`build/sources.jsonl`. That file is 136 MB, gitignored in that repo, and exists on
+exactly one laptop — the precise dependency a handover cannot carry. Fetching by
+ISSN reaches the same underlying records (both routes read OpenAlex's `topics`
+array, which the API caps at 25 entries per source), so the measured figures in
+this document hold for the new route.
 
-```json
-{
-  "threshold": 0.10,
-  "source": "OpenAlex sources, joined by eISSN",
-  "inputs": { "sources_jsonl": "sha256:…", "crosswalk": "sha256:…", "taxonomy": "sha256:…" },
-  "by_eissn": { "1520-5126": ["chemical-material-sciences/organic-chemistry", "…"] }
-}
-```
+`crosswalk.json` and `taxonomy.json` are copied out of the Journal Policy Finder,
+where they are committed and small, and vendored here. After that the two repos
+share no files, and neither can break the other.
 
-Keeping `by_eissn` as slugs, not integers, makes the committed diff reviewable by a
-human when the data is refreshed. Interning to integers happens at build time.
+Committing the subfield snapshot rather than only the derived topics is what keeps
+the build offline and lets a maintainer retune the threshold or the safety net
+without touching the network. It is 769 KB (205 KB gzipped over the wire), against
+an `html/data.json` that is already 1.6 MB. The `data/discipline-tags.json` of the
+earlier draft is dropped: with the snapshot in the repo, a separate derived-tags
+file is a redundant artifact that could silently drift from it.
 
 ### `html/data.json` schema change
 
@@ -286,17 +296,22 @@ not be blocked. Pills wrap.
 
 The join is the part that can break silently, so it gets the real tests.
 
-1. **Unit tests for the tagging rule** (`test/test_discipline_tags.rb`, Ruby stdlib
+The tagging rule lives in `lib/disciplines.rb` as pure functions — subfield counts
+in, topic slugs out, no file or network access — so `bin/build_data` stays a thin
+caller and the logic is testable directly. That is the seam the tests aim at.
+
+1. **Unit tests for the tagging rule** (`test/test_disciplines.rb`, Ruby stdlib
    minitest — no new gems). Pure-function cases: a focused journal keeps few topics;
    an even spread keeps many; the below-threshold tail is dropped; unmapped subfield
    ids are ignored; a record with no subfields yields `[]`; duplicates collapse with
    order preserved; the safety net fires only when nothing clears 10% and caps at
    three topics; the ACM and RSC fallbacks fire only when both of those yield nothing.
 2. **Build-time assertions in `bin/build_data`** that abort rather than ship bad
-   data: every slug in `discipline-tags.json` and every tag on a row resolves in the
-   taxonomy `tag_list`; discipline-reachable coverage is at least 98% (currently
-   99.4%). It prints a coverage summary — threshold, safety net, each fallback, and
-   unreachable — so a regression is visible in the CI log.
+   data: every crosswalk target and every tag assigned to a row resolves in the
+   taxonomy `tag_list`; every eISSN in `openalex-subfields.json` is well-formed;
+   discipline-reachable coverage is at least 98% (currently 99.4%). It prints a
+   coverage summary — threshold, safety net, each fallback, and unreachable — so a
+   regression is visible in the CI log.
 3. **Golden spot-checks against the built `html/data.json`**, asserting the titles
    listed under the tagging rule above resolve to those exact topics. This is what
    catches a silently broken eISSN join, which would otherwise look like a
@@ -308,10 +323,57 @@ The join is the part that can break silently, so it gets the real tests.
    discipline combined with a publisher narrows further; Escape closes the panel and
    returns focus, and arrow keys walk the rows.
 
+## Setup fixes for handover
+
+Audited while designing the pipeline. None of these block the filter, but they are
+the things that would waste a new maintainer's first day, and they are cheapest to
+fix while the pipeline is already being touched.
+
+**1. `bin/update` is a booby trap.** It is the inherited U-M Google-Sheets/S3
+importer, superseded by `bin/build_data`. The README says it "remains in the repo for
+reference but is not wired up," but it is not inert: `Dockerfile`'s data stage ends
+`CMD ["bin/update"]`, so `docker compose run data` — the documented Docker entry
+point — dies on a missing `credentials.json64`. And `Gemfile` carries `google_drive`
+and `json-schema` solely for it, so every `bundle install` pulls a Google API stack
+this project never runs. Proposed: delete `bin/update`, drop both gems, repoint the
+Dockerfile at `bin/build_data`, and drop the now-unused `/credentials.json64` from
+`.gitignore`. Git history keeps the file recoverable. *Needs sign-off — it is
+inherited upstream code.*
+
+**2. Ruby version drift.** Both workflows pin 3.2, the Dockerfile builds on 3.3, and
+nothing declares a version for local development. Add a `.ruby-version` and have the
+workflows and Dockerfile read it, so all three agree.
+
+**3. No test harness or single entry point.** There is no `test/` and no `Rakefile`.
+Add a `Rakefile` whose default task runs the tests and the build, and a CI step that
+calls it, so a maintainer's first command is `rake` rather than a guess.
+
+**4. `.gitignore` is nearly empty** — one line, for the credentials file being
+removed. Add `.DS_Store`, which is currently loose in the working tree.
+
+**5. Two untracked spreadsheets sit in the repo root**: `IOP-ACS-ACM.xlsx` (103 KB)
+and `master list of ACS subscriptions.xls` (26 KB) — raw publisher material behind
+some CSV rows. A maintainer verifying a row would want them, so `data/sources/` is
+the natural home. *Needs sign-off, and a look first:* this repo is public, so
+confirm they hold no confidential pricing or internal licensing detail before
+committing. Otherwise gitignore them.
+
+**6. README needs a subject-data section**: what the topics are, that they are
+derived from OpenAlex rather than publisher-assigned, the refresh command, and the
+deliberate divergence from the Journal Policy Finder's tag rule — so the next
+maintainer does not "fix" the two sites into agreement.
+
 ## Rollout
 
 Push `subject-filter` and open a PR so `build-data.yml` runs on it, then merge to
 `main`, which deploys through the Pages workflow.
+
+A maintainer's loop after this lands:
+
+```sh
+rake                    # tests, then rebuild html/data.json from committed inputs
+ruby bin/fetch_openalex # only to refresh subject data (network, ~2 min)
+```
 
 ## Future work
 
