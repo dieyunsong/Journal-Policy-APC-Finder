@@ -55,6 +55,16 @@ class TestOpenAlexSnapshot < Minitest::Test
     end
   end
 
+  def test_tied_counts_are_broken_by_subfield_id
+    # 42% of journals have at least one pair of tied counts. Without a stable
+    # tiebreaker their order follows whatever order the API returned topics in, and a
+    # refresh diff churns across thousands of entries with no real change in it.
+    by_eissn.first(200).each do |issn, subfields|
+      assert_equal subfields.sort_by { |(id, count)| [-count, id] }, subfields,
+                   "#{issn} is not ordered by count desc then subfield id asc"
+    end
+  end
+
   def test_a_known_journal_resolves_to_its_expected_subject
     # JACS, whose largest subfield is Organic Chemistry (1605) by a wide margin.
     jacs = by_eissn["1520-5126"]

@@ -52,16 +52,25 @@ puts "fetch_openalex: #{eissns.length} distinct eISSNs to look up"
 
 def get_json(url)
   3.times do |attempt|
-    response = Net::HTTP.get_response(URI(url))
-    return JSON.parse(response.body) if response.is_a?(Net::HTTPSuccess)
+    begin
+      response = Net::HTTP.get_response(URI(url))
+      return JSON.parse(response.body) if response.is_a?(Net::HTTPSuccess)
 
-    warn "\n  HTTP #{response.code}, retrying (#{attempt + 1}/3)"
+      warn "\n  HTTP #{response.code}, retrying (#{attempt + 1}/3)"
+    rescue StandardError => e
+      # Timeouts, connection resets and truncated bodies are all transient over a
+      # 93-request session; only a persistent failure should end the run.
+      warn "\n  #{e.class}: #{e.message}, retrying (#{attempt + 1}/3)"
+    end
     sleep(2 * (attempt + 1))
   end
   abort_with("gave up on #{url}")
 end
 
-# Aggregate a source's topic counts up to their subfields, largest first.
+# Aggregate a source's topic counts up to their subfields, largest first, with the
+# subfield id as a stable tiebreaker so a re-fetch's committed diff only shows
+# genuine changes rather than ties reshuffling in whatever order the API returned
+# topics.
 def subfields_of(source)
   totals = Hash.new(0)
   (source["topics"] || []).each do |topic|
@@ -70,7 +79,7 @@ def subfields_of(source)
 
     totals[subfield.split("/").last] += topic["count"].to_i
   end
-  totals.sort_by { |_, count| -count }.map { |id, count| [id, count] }
+  totals.sort_by { |id, count| [-count, id] }.map { |id, count| [id, count] }
 end
 
 by_eissn = {}
