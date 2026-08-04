@@ -143,6 +143,29 @@ filter useless. See `lib/disciplines.rb` for the reasoning in context.
 3. Commit both the CSV and the regenerated `html/data.json`. CI (`.github/workflows/build-data.yml`) rebuilds
    and validates on every push and fails if `data.json` is out of date with the CSV.
 
+## Development
+
+There is nothing to install. The `Gemfile` is intentionally empty — the build, the
+OpenAlex fetch, and the tests all use the Ruby standard library only, so there is
+no `bundle install` step and no `Gemfile.lock`. `.ruby-version` pins 3.3, which
+both GitHub Actions workflows read; this branch was also developed against a local
+2.6, so code changes should stay compatible with older Rubies rather than assuming
+CI's version.
+
+```sh
+rake                    # tests, then rebuild html/data.json
+rake test               # tests only
+rake build              # rebuild html/data.json only, no tests
+ruby bin/fetch_openalex # the only command that touches the network — not a rake
+                        # task on purpose, so `rake` stays offline and deterministic
+```
+
+Tests are [Minitest](https://github.com/minitest/minitest), which ships with Ruby,
+in `test/`. They guard the tagging rule's thresholds and fallbacks
+(`lib/disciplines.rb`), the vendored taxonomy and crosswalk, the shape of the
+committed OpenAlex snapshot, and golden checks on the built `html/data.json` —
+including ones that would catch a silently broken eISSN join.
+
 ## Running locally
 
 Serve the `html/` directory with any static server, e.g.:
