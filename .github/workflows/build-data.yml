@@ -1,12 +1,12 @@
 name: Build and validate data
 
 on:
+  # Deliberately no `paths:` filter. An enumerated list rotted the moment lib/ and
+  # test/ were added: a push touching only lib/disciplines.rb — the documented way to
+  # retune the tagging threshold — ran neither the tests nor the stale-data.json check,
+  # while deploy-pages.yml rebuilt and shipped it anyway. The job takes seconds, so
+  # running it on a docs-only push is cheaper than maintaining the list.
   push:
-    paths:
-      - "data/**"
-      - "bin/build_data"
-      - "html/**"
-      - ".github/workflows/build-data.yml"
   pull_request:
   workflow_dispatch:
 

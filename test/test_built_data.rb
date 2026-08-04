@@ -1,4 +1,5 @@
 require "test_helper"
+require "csv"
 require "json"
 
 # End-to-end guard on the built artifact the site actually loads. The eISSN join is
@@ -40,8 +41,18 @@ class TestBuiltData < Minitest::Test
                   "Link to Agreement Info", "Disciplines"], built["header"]
   end
 
-  def test_row_count
-    assert_equal 6147, rows.length
+  # Derived from the CSV, not pinned to a literal, for two reasons. It is the stronger
+  # invariant — bin/build_data emits exactly one row per CSV row, so this asserts the
+  # artifact matches its source rather than matching a number someone wrote down. And a
+  # pinned count broke the documented maintenance loop: adding a CSV row and running
+  # `rake` passed locally against the stale committed data.json, then failed in CI on a
+  # figure the README never mentioned.
+  def test_one_output_row_per_csv_row
+    expected = CSV.read(File.join(ROOT, "data", "northwestern-agreements.csv"),
+                        headers: true, encoding: "UTF-8").length
+    assert_equal expected, rows.length,
+                 "html/data.json has #{rows.length} rows but the CSV has #{expected}; " \
+                 "run `rake build`"
   end
 
   def test_at_least_98_percent_of_rows_are_reachable_by_discipline
