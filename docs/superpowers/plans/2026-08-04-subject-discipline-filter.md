@@ -2169,19 +2169,21 @@ Journals spread so evenly that nothing clears 10% keep their three largest subje
 instead. ACM conference-proceedings series and Royal Society of Chemistry titles are
 classified at the publisher level, because OpenAlex has no per-title record for
 them — proceedings are not journals to OpenAlex, and the RSC rows carry no eISSN to
-join on. About 99% of rows end up reachable by a discipline filter; the rest appear
-only when no discipline is selected.
+join on. **6,139 of the 6,147 rows (99.9%) end up reachable by a discipline filter**;
+the remaining 8 carry no classification and appear only when no discipline is selected.
 
 The vocabulary is a Google Scholar-derived taxonomy of 8 broad areas and 172 topics,
 in `data/taxonomy.json`. `data/crosswalk.json` maps OpenAlex subject ids onto it.
-Both are vendored copies of files from the companion Journal-Policy-Finder repo.
+Both are vendored copies of files from the companion Journal-Policy-Finder repo,
+stripped of that project's own keys. Of the 172 topics, 164 have at least one covered
+journal; the build offers only those, so no topic in the picker returns nothing.
 
 ### Files
 
 | File | Committed? | What it is |
 |---|---|---|
-| `data/openalex-subfields.json` | yes | Snapshot of OpenAlex subject counts per eISSN (~770 KB) |
-| `data/taxonomy.json` | yes | The 8 areas and 172 topics |
+| `data/openalex-subfields.json` | yes | Snapshot of OpenAlex subject counts per eISSN (~774 KB) |
+| `data/taxonomy.json` | yes | The 8 areas and 172 topics (~26 KB) |
 | `data/crosswalk.json` | yes | OpenAlex subject id → topic |
 | `lib/disciplines.rb` | yes | The tagging rule (threshold, safety net, fallbacks) |
 | `bin/fetch_openalex` | yes | Refreshes the snapshot. **The only script that uses the network.** |
