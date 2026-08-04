@@ -532,7 +532,7 @@ EOF
 Copies two small committed files out of the sibling repo so this repo stops depending on it.
 
 **Files:**
-- Create: `data/taxonomy.json` (~225 KB), `data/crosswalk.json` (~14 KB)
+- Create: `data/taxonomy.json` (~50 KB after stripping the sibling repo's `tag_counts` and `publisher_homepages`), `data/crosswalk.json` (~14 KB)
 - Test: `test/test_reference_data.rb`
 
 **Interfaces:**
@@ -554,22 +554,30 @@ If the sibling checkout is missing, get the two files from
 and `scripts/crosswalk.json` — both are committed there. This is the last step in
 the project that needs the sibling repo at all.
 
-- [ ] **Step 2: Strip the sibling repo's row counts from the taxonomy**
+- [ ] **Step 2: Strip the sibling repo's own concerns from the taxonomy**
 
-`taxonomy.json` arrives carrying a `tag_counts` map computed against that repo's
-52,714 journals. Ours must be computed from the TA rows, so drop it here to avoid
-two conflicting sources of truth:
+The file arrives carrying two keys that belong to that project, not this one, and
+both must go:
+
+- `tag_counts` — row counts computed against its 52,714 journals. Ours must come from
+  the TA rows or the number beside each topic in the picker means nothing.
+- `publisher_homepages` — 4,844 publisher-ID-to-URL pairs serving a feature this site
+  does not have. It is 196 KB of the source file's 250 KB and nothing here reads it.
+  Leaving it would hand a maintainer a file that is three-quarters irrelevant.
 
 ```bash
 ruby -rjson -e '
   t = JSON.parse(File.read("data/taxonomy.json"))
-  removed = t.delete("tag_counts")
+  dropped = ["tag_counts", "publisher_homepages"].select { |k| !t.delete(k).nil? }
   File.write("data/taxonomy.json", JSON.pretty_generate(t) + "\n")
-  puts "areas=#{t["areas"].length} tag_list=#{t["tag_list"].length} dropped tag_counts=#{!removed.nil?}"
+  puts "areas=#{t["areas"].length} tag_list=#{t["tag_list"].length} " \
+       "keys=#{t.keys.sort.inspect} dropped=#{dropped.sort.inspect}"
 '
+ls -la data/taxonomy.json
 ```
 
-Expected: `areas=8 tag_list=172 dropped tag_counts=true`
+Expected: `areas=8 tag_list=172 keys=["areas", "tag_list"] dropped=["publisher_homepages", "tag_counts"]`,
+and a file around 50 KB rather than 250 KB.
 
 - [ ] **Step 3: Write the failing test**
 
@@ -601,6 +609,14 @@ class TestReferenceData < Minitest::Test
   def test_taxonomy_carries_no_foreign_row_counts
     refute taxonomy.key?("tag_counts"),
            "tag_counts must be computed from this repo's rows by bin/build_data"
+  end
+
+  def test_taxonomy_carries_only_the_keys_this_repo_uses
+    # Pinning the key set is what catches an over-inclusive copy. The first copy
+    # of this file also brought 196 KB of publisher homepage data the sibling repo
+    # uses for its own features, and a test that only refuted `tag_counts` let it
+    # straight through.
+    assert_equal Set["areas", "tag_list"], taxonomy.keys.to_set
   end
 
   def test_every_tag_list_entry_resolves_to_an_area_and_a_subcategory

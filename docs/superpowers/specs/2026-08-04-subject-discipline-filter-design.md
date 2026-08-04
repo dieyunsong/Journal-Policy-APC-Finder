@@ -70,9 +70,18 @@ Journals a researcher would see per broad area:
 
 Reuse the Google Scholar-derived taxonomy already committed in the Journal Policy
 Finder (`html/data/taxonomy.json`): 8 broad areas, 172 topics, each topic keyed by
-an `area-slug/topic-slug` pair. Copied verbatim into TA-Finder as
-`data/taxonomy.json`. Sharing the taxonomy is what makes the two sites feel like
-one family of tools; what they must *not* share is the tag-assignment rule (below).
+an `area-slug/topic-slug` pair. Sharing the taxonomy is what makes the two sites feel
+like one family of tools; what they must *not* share is the tag-assignment rule
+(below).
+
+Copy it to `data/taxonomy.json` keeping only the keys this repo uses — `areas` and
+`tag_list` — and drop the rest of what the sibling repo keeps in that file. Two keys
+need dropping, for the same reason: they are that project's concerns, not ours.
+`tag_counts` holds row counts computed against its 52,714 journals, and ours must be
+computed from the TA rows or the numbers beside each topic in the picker would be
+meaningless. `publisher_homepages` is 4,844 publisher-ID-to-URL pairs serving a
+feature this site does not have — 196 KB of the source file's 250 KB, and nothing
+here reads it. Stripping both leaves roughly 50 KB that is all taxonomy.
 
 ### Tag assignment rule: 10% article share
 
@@ -169,7 +178,7 @@ OpenAlex API   (api.openalex.org/sources?filter=issn:…)
         ▼
   data/openalex-subfields.json   committed · 769 KB · eISSN → [[subfieldId, articleCount], …]
   data/crosswalk.json            committed ·  14 KB · OpenAlex subfield id → taxonomy topic
-  data/taxonomy.json             committed · 225 KB · 8 areas, 172 topics
+  data/taxonomy.json             committed ·  50 KB · 8 areas, 172 topics
         │
         │  bin/build_data        (existing, extended · offline · deterministic)
         ▼
