@@ -16,6 +16,7 @@
  *       [5] Campuses Covered
  *       [6] Coverage Years
  *       [7] Link to Agreement Info (URL)
+ *       [8] Disciplines (array of integer topic ids indexing json.taxonomy.tag_list)
  *     ]
  *   }
  *
@@ -49,6 +50,14 @@ $(document).ready(function () {
     var selectedPublishers = [];
     var allPublishersCount = 0;
 
+    // Discipline filter state.  selectedTopics holds integer topic ids from the
+    // picker; disciplinePicker is the picker handle, created once data has loaded.
+    // Note the asymmetry with publishers: an empty publisher selection hides every
+    // row (all boxes start checked, so empty means the user unchecked them all),
+    // but an empty discipline selection is the DEFAULT and must show everything.
+    var selectedTopics = [];
+    var disciplinePicker = null;
+
     // Register a custom search function with DataTables.
     // DataTables calls this for every row on each draw; returning true keeps the row
     // visible, false hides it.  The guard on settings.nTable.id ensures this filter
@@ -69,6 +78,22 @@ $(document).ready(function () {
         }
         if (selectedPublishers.indexOf(publisher) === -1) {
             return false;
+        }
+        // Discipline filter: no selection means no discipline filtering.  With a
+        // selection, a row matches if it carries ANY selected topic (OR within
+        // disciplines, AND against the publisher filter above).  Rows with no
+        // topics at all — 8 titles OpenAlex does not describe — drop out here.
+        if (selectedTopics.length > 0) {
+            var topics = rawData[dataIndex] ? rawData[dataIndex][8] : null;
+            if (!topics || topics.length === 0) {
+                return false;
+            }
+            var matches = topics.some(function (id) {
+                return selectedTopics.indexOf(id) !== -1;
+            });
+            if (!matches) {
+                return false;
+            }
         }
         return true;
     });
@@ -148,6 +173,11 @@ $(document).ready(function () {
                     });
                     selectedPublishers = allPublishers;
                 }
+
+                // Build the discipline picker from the taxonomy in data.json.  It
+                // has to happen here rather than at page load because the topic
+                // counts beside each option come from the data.
+                buildDisciplinePicker(json.taxonomy);
 
                 // Return the raw rows array; DataTables maps each row to the 'columns'
                 // definitions using the numeric 'data' indices defined above.
@@ -254,6 +284,41 @@ $(document).ready(function () {
     }
 
     /**
+     * buildDisciplinePicker
+     * Creates the two-level discipline picker inside #disciplinePicker and wires its
+     * selection changes to a table redraw.
+     *
+     * @param {Object} taxonomy - json.taxonomy: { areas, tag_list, tag_counts }
+     */
+    function buildDisciplinePicker(taxonomy) {
+        var container = document.getElementById('disciplinePicker');
+        if (!container || !window.NUDiscipline || !taxonomy) {
+            return;
+        }
+        var groups = window.NUDiscipline.buildDisciplineOptions(taxonomy);
+        disciplinePicker = window.NUDiscipline.createDisciplinePicker(container, groups, {
+            triggerId: 'disciplineDropdown',
+            onChange: function (topics) {
+                selectedTopics = topics;
+                renderFilterSummary();
+                table.draw();
+            }
+        });
+    }
+
+    /**
+     * clearDisciplineFilter
+     * Empties the discipline picker and its filter state.  Called from both
+     * "Clear all filters" paths.
+     */
+    function clearDisciplineFilter() {
+        selectedTopics = [];
+        if (disciplinePicker) {
+            disciplinePicker.clear();
+        }
+    }
+
+    /**
      * filterTable
      * Reads the current state of all publisher checkboxes, updates the
      * selectedPublishers array, then triggers a DataTables redraw.  The custom
@@ -278,10 +343,17 @@ $(document).ready(function () {
      */
     function renderFilterSummary() {
         var pubCount = selectedPublishers.length;
-        var show = (pubCount !== allPublishersCount);
+        var topicCount = selectedTopics.length;
+        var show = (pubCount !== allPublishersCount || topicCount > 0);
         if (show) {
-            var text = 'Filtering by ' + pubCount + ' publisher' + (pubCount !== 1 ? 's' : '');
-            $('#filterSummaryText').text(text);
+            var parts = [];
+            if (pubCount !== allPublishersCount) {
+                parts.push(pubCount + ' publisher' + (pubCount !== 1 ? 's' : ''));
+            }
+            if (topicCount > 0) {
+                parts.push(topicCount + ' discipline' + (topicCount !== 1 ? 's' : ''));
+            }
+            $('#filterSummaryText').text('Filtering by ' + parts.join(' and '));
             $('#filterSummaryContainer').css('visibility', 'visible');
         } else {
             $('#filterSummaryText').text('');
@@ -294,6 +366,7 @@ $(document).ready(function () {
     // resets all checkboxes to checked.
     $(document).on('click', '#clearAllFiltersBtn', function () {
         $('.publisher-checkbox').prop('checked', true);
+        clearDisciplineFilter();
         filterTable();
     });
 
@@ -327,6 +400,7 @@ $(document).ready(function () {
     $(document).on('click', '#clearAllFiltersFromEmpty', function (e) {
         e.preventDefault();
         $('.publisher-checkbox').prop('checked', true);
+        clearDisciplineFilter();
         table.search('').draw();
         filterTable();
     });
@@ -362,6 +436,10 @@ function CreateFilterContainer() {
                 </ul>
                 </div>
             </div>
+            <div class="d-flex flex-column" style="min-width: 22rem; flex: 1 1 22rem;">
+                <label for="disciplineDropdown">Filter by Discipline:</label>
+                <div id="disciplinePicker" class="picker"></div>
+            </div>
         </div>
     `
 }
@@ -388,7 +466,8 @@ function CreateNoResultsMessage() {
                     Visit <a href="https://www.library.northwestern.edu/use-the-libraries/research-teaching/open-access-publishing/">Open Access Publishing at Northwestern</a> for more information.
                 </li>
                 <li style="color: var(--color-neutral-300); margin-bottom: 1rem;">
-                    <strong>Too Many Filters:</strong> You may have selected a publisher filter that excludes the journal you're searching for.
+                    <strong>Too Many Filters:</strong> You may have selected a publisher or discipline filter that excludes the journal you're searching for.
+                    A few titles carry no discipline classification at all and appear only when no discipline is selected.
                     Try removing all active filters and searching again.
                 </li>
                 <li style="color: var(--color-neutral-300); margin-bottom: 1rem;">
