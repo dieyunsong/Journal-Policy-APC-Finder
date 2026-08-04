@@ -337,8 +337,7 @@ point — dies on a missing `credentials.json64`. And `Gemfile` carries `google_
 and `json-schema` solely for it, so every `bundle install` pulls a Google API stack
 this project never runs. Proposed: delete `bin/update`, drop both gems, repoint the
 Dockerfile at `bin/build_data`, and drop the now-unused `/credentials.json64` from
-`.gitignore`. Git history keeps the file recoverable. *Needs sign-off — it is
-inherited upstream code.*
+`.gitignore`. Git history keeps the file recoverable. **Approved 2026-08-04.**
 
 **2. Ruby version drift.** Both workflows pin 3.2, the Dockerfile builds on 3.3, and
 nothing declares a version for local development. Add a `.ruby-version` and have the
@@ -353,10 +352,10 @@ removed. Add `.DS_Store`, which is currently loose in the working tree.
 
 **5. Two untracked spreadsheets sit in the repo root**: `IOP-ACS-ACM.xlsx` (103 KB)
 and `master list of ACS subscriptions.xls` (26 KB) — raw publisher material behind
-some CSV rows. A maintainer verifying a row would want them, so `data/sources/` is
-the natural home. *Needs sign-off, and a look first:* this repo is public, so
-confirm they hold no confidential pricing or internal licensing detail before
-committing. Otherwise gitignore them.
+some CSV rows. **Decided 2026-08-04: leave them out.** Their data quality is still
+being worked on, so they are not ready for a public repo. `.gitignore` covers them
+by name so they cannot be committed by accident while in flux; revisit once the
+underlying data settles, at which point `data/sources/` is the natural home.
 
 **6. README needs a subject-data section**: what the topics are, that they are
 derived from OpenAlex rather than publisher-assigned, the refresh command, and the
