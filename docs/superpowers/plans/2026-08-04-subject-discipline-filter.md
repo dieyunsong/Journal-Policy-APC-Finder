@@ -296,6 +296,18 @@ class TestTopicsFor < Minitest::Test
                  Disciplines.topics_for(subfields, CROSSWALK)
   end
 
+  def test_tied_counts_are_ordered_by_subfield_id
+    # Ruby sort_by is not stable, so ties must be broken explicitly or the committed
+    # html/data.json is not byte-reproducible across Ruby versions. Ids are chosen so
+    # ascending id order differs from input order — the test would pass by luck otherwise.
+    tied = [["1606", 500], ["1312", 500], ["1605", 500]]
+    assert_equal [
+      "life-sciences-earth-sciences/molecular-biology", # 1312
+      "chemical-material-sciences/organic-chemistry",   # 1605
+      "chemical-material-sciences/general",             # 1606
+    ], Disciplines.topics_for(tied, CROSSWALK)
+  end
+
   def test_no_subfields_yields_nothing
     assert_equal [], Disciplines.topics_for([], CROSSWALK)
     assert_equal [], Disciplines.topics_for(nil, CROSSWALK)
@@ -448,7 +460,11 @@ module Disciplines
   # subfields: [[subfield_id, article_count], ...] in any order
   # crosswalk:  { subfield_id => topic_slug }
   def self.topics_for(subfields, crosswalk)
-    ranked = (subfields || []).sort_by { |(_, count)| -count.to_i }
+    # Subfield id breaks ties: Ruby sort_by is not stable, so without a secondary key
+    # two equal-count subfields can order either way between interpreter versions — and
+    # html/data.json is committed and byte-checked by CI, which builds on a different
+    # Ruby than a maintainer laptop.
+    ranked = (subfields || []).sort_by { |(id, count)| [-count.to_i, id.to_s] }
     total = ranked.sum { |(_, count)| count.to_i }
     return [] if total <= 0
 
