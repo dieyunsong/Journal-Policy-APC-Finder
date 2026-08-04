@@ -7,14 +7,16 @@
 # reproducible, offline pipeline. The output shape is what the front-end
 # (html/js/script.js) expects:
 #
-#   { "header": [...8 columns...], "version": "...", "data": [ [ ...8 cells... ], ... ] }
+#   { "header": [...9 columns...], "version": "...", "taxonomy": {...}, "data": [ [ ...9 cells... ], ... ] }
 #
 # The CSV carries 7 columns (no eISSN Link); this script inserts the eISSN
 # Link column, generated from the eISSN as an ISSN-portal URL. ACM conference
 # proceedings series carry the placeholder "[conference proceedings]" instead
 # of an eISSN; that becomes the plain label "conference proceedings" with no
-# link. Each output row is a positional array of 8 strings; empty cells become
-# null. Only eISSN and eISSN Link are allowed to be null.
+# link. Each output row is a positional array of 9 elements: the first 8 are
+# strings (empty cells become null; only eISSN and eISSN Link are allowed to be
+# null), and the 9th ("Disciplines") is an Array<Integer> of topic ids indexing
+# into the top-level "taxonomy"."tag_list" array.
 #
 # Usage: ruby bin/build_data        (run from the repo root)
 
@@ -74,9 +76,16 @@ unless rows.headers == CSV_HEADER
   abort_with("CSV header mismatch.\n  expected: #{CSV_HEADER.inspect}\n  got:      #{rows.headers.inspect}")
 end
 
-taxonomy  = JSON.parse(File.read(TAXONOMY_FILE))
-crosswalk = JSON.parse(File.read(CROSSWALK_FILE))
-subfields_by_eissn = JSON.parse(File.read(SUBFIELDS_FILE)).fetch("by_eissn")
+begin
+  taxonomy  = JSON.parse(File.read(TAXONOMY_FILE))
+  crosswalk = JSON.parse(File.read(CROSSWALK_FILE))
+  subfields_by_eissn = JSON.parse(File.read(SUBFIELDS_FILE)).fetch("by_eissn")
+rescue Errno::ENOENT, JSON::ParserError, KeyError => e
+  abort_with("could not load reference data (#{e.message}). Confirm " \
+             "#{TAXONOMY_FILE}, #{CROSSWALK_FILE}, and #{SUBFIELDS_FILE} exist and " \
+             "are well-formed; re-run `ruby bin/fetch_openalex` if the OpenAlex " \
+             "snapshot is missing or stale.")
+end
 
 known_topics = taxonomy.fetch("tag_list")
 crosswalk.each do |subfield_id, slug|

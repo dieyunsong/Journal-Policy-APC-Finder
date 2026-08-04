@@ -60,6 +60,17 @@ class TestTopicsFor < Minitest::Test
   def test_zero_counts_yield_nothing_without_dividing_by_zero
     assert_equal [], Disciplines.topics_for([["1605", 0], ["1606", 0]], CROSSWALK)
   end
+
+  def test_tied_counts_are_ordered_by_subfield_id
+    # Ruby's sort_by is not stable, so ties must be broken explicitly or the committed
+    # html/data.json is not byte-reproducible across Ruby versions.
+    tied = [["1606", 500], ["1312", 500], ["1605", 500]]
+    assert_equal [
+      "life-sciences-earth-sciences/molecular-biology", # 1312
+      "chemical-material-sciences/organic-chemistry",   # 1605
+      "chemical-material-sciences/general",             # 1606
+    ], Disciplines.topics_for(tied, CROSSWALK)
+  end
 end
 
 class TestSafetyNet < Minitest::Test

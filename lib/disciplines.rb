@@ -30,7 +30,11 @@ module Disciplines
   # subfields: [[subfield_id, article_count], ...] in any order
   # crosswalk:  { subfield_id => topic_slug }
   def self.topics_for(subfields, crosswalk)
-    ranked = (subfields || []).sort_by { |(_, count)| -count.to_i }
+    # Subfield id breaks ties: Ruby's sort_by is not stable, so without a secondary
+    # key two subfields with equal counts can order either way between interpreter
+    # versions — and html/data.json is committed and byte-checked by CI, which builds
+    # on a different Ruby than a maintainer's laptop.
+    ranked = (subfields || []).sort_by { |(id, count)| [-count.to_i, id.to_s] }
     total = ranked.sum { |(_, count)| count.to_i }
     return [] if total <= 0
 
