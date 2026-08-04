@@ -250,8 +250,8 @@ single `window.NUDiscipline` namespace. It loads before `script.js`.
 
 ### Placement and wiring
 
-A third field joins the Publisher and Campus dropdowns in `CreateFilterContainer`:
-a `Filter by Discipline:` label plus `<div id="disciplinePicker" class="picker">`.
+A second field joins the Publisher dropdown in `CreateFilterContainer`: a
+`Filter by Discipline:` label plus `<div id="disciplinePicker" class="picker">`.
 The picker is created inside the `ajax.dataSrc` callback, after `data.json` arrives,
 because its area and topic counts come from the data.
 
@@ -261,11 +261,11 @@ button), so the picker accepts a `triggerId` option to put the id on its own but
 ### Filter semantics
 
 Selected topics are OR'd: a row matches if it carries **any** selected topic. The
-result AND's with Publisher, Campus, and the 100%-covered checkbox, inside the same
-`$.fn.dataTable.ext.search` callback the other filters use, reading the row's tags
-from `rawData[dataIndex][8]`.
+result AND's with the Publisher filter — the only other filter on this branch —
+inside the same `$.fn.dataTable.ext.search` callback, reading the row's tags from
+`rawData[dataIndex][8]`.
 
-One asymmetry to implement deliberately: Publisher and Campus treat an empty
+One asymmetry to implement deliberately: the Publisher filter treats an empty
 selection as "no rows pass", which works because every box starts checked. The
 discipline picker starts **empty**, and empty must mean "no discipline filtering,
 show everything." So the discipline check short-circuits to `true` when nothing is
@@ -283,9 +283,9 @@ not be blocked. Pills wrap.
 - Both "Clear all filters" paths (`#clearAllFiltersBtn` and
   `#clearAllFiltersFromEmpty`) call the picker's `clear()` and reset the selection.
 - `CreateNoResultsMessage`'s "Too Many Filters" item mentions the discipline filter.
-- A new explanatory paragraph in the page's info section, matching the existing
-  `eissnInfo` / `discountOrWaiverInfo` / `coverageYearsInfo` pattern and linked from
-  the same "Learn more about…" line. Faculty need to know these subjects are derived
+- A new `<li>` in the "About the data" list in `index.html`, following the existing
+  `<strong id="eissnInfo">` / `<strong id="agreementInfo">` pattern. Faculty need to
+  know these subjects are derived
   from publication data rather than assigned by publishers: topics come from OpenAlex
   subject data for each journal, keeping those accounting for at least 10% of its
   articles; ACM proceedings and Royal Society of Chemistry titles are classified at
