@@ -532,7 +532,7 @@ EOF
 Copies two small committed files out of the sibling repo so this repo stops depending on it.
 
 **Files:**
-- Create: `data/taxonomy.json` (~50 KB after stripping the sibling repo's `tag_counts` and `publisher_homepages`), `data/crosswalk.json` (~14 KB)
+- Create: `data/taxonomy.json` (~26 KB after stripping the sibling repo's `tag_counts` and `publisher_homepages`), `data/crosswalk.json` (~14 KB)
 - Test: `test/test_reference_data.rb`
 
 **Interfaces:**
@@ -577,7 +577,7 @@ ls -la data/taxonomy.json
 ```
 
 Expected: `areas=8 tag_list=172 keys=["areas", "tag_list"] dropped=["publisher_homepages", "tag_counts"]`,
-and a file around 50 KB rather than 250 KB.
+and a file around 26 KB rather than 250 KB.
 
 - [ ] **Step 3: Write the failing test**
 

@@ -8,15 +8,14 @@ Branch: `subject-filter` (off `origin/main` @ bfa871b)
 Let Northwestern faculty and researchers narrow the 6,147 transformative-agreement
 rows to journals in their own discipline.
 
-Today the only ways in are free-text search on title/eISSN and the Publisher,
-Campus, and "100% covered" filters. All of those assume the author already has a
-title in mind. The question this feature answers is the one researchers actually
-arrive with: *which journals in my field can I publish in under a Northwestern or
-BTAA agreement?*
+Today the only ways in are free-text search on title and eISSN, and the Publisher
+filter. Both assume the author already has a title in mind. The question this feature
+answers is the one researchers actually arrive with: *which journals in my field can I
+publish in under a Northwestern or BTAA agreement?*
 
 ## Non-goals
 
-- No visible Disciplines column in the results table (it is already six columns wide).
+- No visible Disciplines column in the results table (it is already seven columns wide).
 - No fine-grained subject tagging of ACM conference proceedings; they are classified
   at the publisher level. Curating the 1,470 series names is separate future work.
 - No change to the CSV schema, the search box, or the existing filters' behavior.
@@ -81,7 +80,7 @@ need dropping, for the same reason: they are that project's concerns, not ours.
 computed from the TA rows or the numbers beside each topic in the picker would be
 meaningless. `publisher_homepages` is 4,844 publisher-ID-to-URL pairs serving a
 feature this site does not have — 196 KB of the source file's 250 KB, and nothing
-here reads it. Stripping both leaves roughly 50 KB that is all taxonomy.
+here reads it. Stripping both leaves 26 KB that is all taxonomy.
 
 ### Tag assignment rule: 10% article share
 
@@ -178,7 +177,7 @@ OpenAlex API   (api.openalex.org/sources?filter=issn:…)
         ▼
   data/openalex-subfields.json   committed · 769 KB · eISSN → [[subfieldId, articleCount], …]
   data/crosswalk.json            committed ·  14 KB · OpenAlex subfield id → taxonomy topic
-  data/taxonomy.json             committed ·  50 KB · 8 areas, 172 topics
+  data/taxonomy.json             committed ·  26 KB · 8 areas, 172 topics
         │
         │  bin/build_data        (existing, extended · offline · deterministic)
         ▼
