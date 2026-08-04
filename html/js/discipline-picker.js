@@ -69,6 +69,10 @@
     return groups;
   }
 
+  // Serial for panel ids, so two pickers on one page cannot collide even if neither
+  // was given a triggerId.
+  var pickerSeq = 0;
+
   /**
    * @param {HTMLElement} container
    * @param {Array} groups - from buildDisciplineOptions
@@ -77,6 +81,7 @@
   function createDisciplinePicker(container, groups, options) {
     var opts = options || {};
     var onChange = opts.onChange;
+    var panelId = (opts.triggerId || "discipline-picker-" + (++pickerSeq)) + "-panel";
     var labels = {};
     groups.forEach(function (g) {
       g.topics.forEach(function (t) { labels[t.id] = t.label; });
@@ -85,16 +90,21 @@
     var selected = [];
     var area = null; // null = showing the area list
 
+    // The panel is a disclosure holding a two-level list of buttons and checkboxes —
+    // not a listbox, a menu, or a dialog — so the honest ARIA is aria-expanded plus
+    // aria-controls naming the panel. The sibling repo's aria-haspopup="listbox"
+    // promised assistive tech single-select option semantics this widget does not
+    // provide: there is no role="option" and no aria-selected anywhere in it.
     container.innerHTML =
       '<div class="picker-control">' +
       '<span class="picker-pills"></span>' +
       '<button type="button" class="picker-open"' +
       (opts.triggerId ? ' id="' + escapeHtml(opts.triggerId) + '"' : "") +
-      ' aria-expanded="false" aria-haspopup="listbox">' +
+      ' aria-expanded="false" aria-controls="' + escapeHtml(panelId) + '">' +
       '<span class="picker-open-text">Select disciplines and topics</span>' +
       '<span class="picker-caret" aria-hidden="true">▾</span>' +
       "</button></div>" +
-      '<div class="picker-panel" hidden></div>';
+      '<div class="picker-panel" id="' + escapeHtml(panelId) + '" hidden></div>';
 
     var control = container.querySelector(".picker-control");
     var pillsEl = container.querySelector(".picker-pills");
