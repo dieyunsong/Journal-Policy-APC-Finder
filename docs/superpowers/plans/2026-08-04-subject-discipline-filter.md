@@ -767,10 +767,16 @@ puts "fetch_openalex: #{eissns.length} distinct eISSNs to look up"
 
 def get_json(url)
   3.times do |attempt|
-    response = Net::HTTP.get_response(URI(url))
-    return JSON.parse(response.body) if response.is_a?(Net::HTTPSuccess)
+    begin
+      response = Net::HTTP.get_response(URI(url))
+      return JSON.parse(response.body) if response.is_a?(Net::HTTPSuccess)
 
-    warn "\n  HTTP #{response.code}, retrying (#{attempt + 1}/3)"
+      warn "\n  HTTP #{response.code}, retrying (#{attempt + 1}/3)"
+    rescue StandardError => e
+      # Timeouts, connection resets and truncated bodies are all transient over a
+      # 93-request session; only a persistent failure should end the run.
+      warn "\n  #{e.class}: #{e.message}, retrying (#{attempt + 1}/3)"
+    end
     sleep(2 * (attempt + 1))
   end
   abort_with("gave up on #{url}")
@@ -785,7 +791,10 @@ def subfields_of(source)
 
     totals[subfield.split("/").last] += topic["count"].to_i
   end
-  totals.sort_by { |_, count| -count }.map { |id, count| [id, count] }
+  # Subfield id is a stable secondary key: 42% of journals have at least one pair of
+  # tied counts, and without a tiebreaker their order follows whatever order the API
+  # returned topics in — making a refresh diff churn for no real reason.
+  totals.sort_by { |id, count| [-count, id] }.map { |id, count| [id, count] }
 end
 
 by_eissn = {}
@@ -916,6 +925,16 @@ class TestOpenAlexSnapshot < Minitest::Test
     by_eissn.first(200).each do |issn, subfields|
       counts = subfields.map { |(_, count)| count }
       assert_equal counts.sort.reverse, counts, "#{issn} is not sorted by count"
+    end
+  end
+
+  def test_tied_counts_are_broken_by_subfield_id
+    # 42% of journals have at least one pair of tied counts. Without a stable
+    # tiebreaker their order follows whatever order the API returned topics in, and a
+    # refresh diff churns across thousands of entries with no real change in it.
+    by_eissn.first(200).each do |issn, subfields|
+      assert_equal subfields.sort_by { |(id, count)| [-count, id] }, subfields,
+                   "#{issn} is not ordered by count desc then subfield id asc"
     end
   end
 
