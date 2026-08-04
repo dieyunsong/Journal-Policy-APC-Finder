@@ -1,0 +1,117 @@
+#!/usr/bin/env ruby
+
+# Fetches OpenAlex subject data for the journals in data/northwestern-agreements.csv
+# and writes data/openalex-subfields.json, which is committed.
+#
+# This is the ONLY script here that uses the network, and it is deliberately not a
+# rake task: bin/build_data must stay offline and deterministic (CI rebuilds
+# html/data.json and asserts git diff is clean), so refreshing subject data is a
+# separate, conscious act.
+#
+# Run it when the CSV gains journals, or to pick up OpenAlex's newer article counts:
+#
+#   ruby bin/fetch_openalex
+#
+# Roughly 93 requests at 50 eISSNs each, about two minutes. No API key is needed —
+# OpenAlex asks only for a mailto so it can put you on its polite pool.
+#
+# Each OpenAlex source describes its output as `topics`, each topic belonging to a
+# broader `subfield`. We aggregate topic article counts up to the subfield and keep
+# that, because the crosswalk in data/crosswalk.json is keyed by subfield.
+
+require "csv"
+require "json"
+require "net/http"
+require "set"
+require "uri"
+
+CSV_FILE = File.join(__dir__, "..", "data", "northwestern-agreements.csv")
+OUT_FILE = File.join(__dir__, "..", "data", "openalex-subfields.json")
+
+API = "https://api.openalex.org/sources"
+MAILTO = ENV.fetch("OPENALEX_MAILTO", "scholarlycommunication@northwestern.edu")
+BATCH_SIZE = 50          # OpenAlex caps an OR filter at 50 values
+PAUSE_SECONDS = 0.2      # be polite even though the pool allows more
+ISSN_PATTERN = /\A\d{4}-\d{3}[\dX]\z/
+
+def abort_with(message)
+  warn "fetch_openalex: #{message}"
+  exit 1
+end
+
+# Collect the well-formed eISSNs. ACM proceedings rows carry the placeholder
+# "[conference proceedings]" and a few titles are blank; both are skipped here and
+# picked up by the publisher fallback in lib/disciplines.rb.
+eissns = CSV.read(CSV_FILE, headers: true, encoding: "UTF-8")
+             .map { |row| row["eISSN"].to_s.strip }
+             .select { |v| v.match?(ISSN_PATTERN) }
+             .uniq
+             .sort
+abort_with("no well-formed eISSNs found in #{CSV_FILE}") if eissns.empty?
+puts "fetch_openalex: #{eissns.length} distinct eISSNs to look up"
+
+def get_json(url)
+  3.times do |attempt|
+    response = Net::HTTP.get_response(URI(url))
+    return JSON.parse(response.body) if response.is_a?(Net::HTTPSuccess)
+
+    warn "\n  HTTP #{response.code}, retrying (#{attempt + 1}/3)"
+    sleep(2 * (attempt + 1))
+  end
+  abort_with("gave up on #{url}")
+end
+
+# Aggregate a source's topic counts up to their subfields, largest first.
+def subfields_of(source)
+  totals = Hash.new(0)
+  (source["topics"] || []).each do |topic|
+    subfield = topic.dig("subfield", "id")
+    next unless subfield
+
+    totals[subfield.split("/").last] += topic["count"].to_i
+  end
+  totals.sort_by { |_, count| -count }.map { |id, count| [id, count] }
+end
+
+by_eissn = {}
+requested = Set.new(eissns)
+
+eissns.each_slice(BATCH_SIZE).with_index do |batch, index|
+  # %7C rather than a literal "|": pipes are not legal in a URI, and while Ruby's
+  # default parser tolerates them, encoding is correct and version-proof.
+  url = "#{API}?filter=issn:#{batch.join('%7C')}" \
+        "&select=id,display_name,issn_l,issn,topics&per-page=#{BATCH_SIZE}" \
+        "&mailto=#{MAILTO}"
+  body = get_json(url)
+
+  (body["results"] || []).each do |source|
+    subfields = subfields_of(source)
+    next if subfields.empty?
+
+    # A source is reachable by several ISSNs (print, electronic, linking). Key the
+    # result under whichever ones we actually asked for, so Task 5 can look a row
+    # up by the eISSN printed in the CSV.
+    ((source["issn"] || []) + [source["issn_l"]]).compact.uniq.each do |issn|
+      by_eissn[issn] = subfields if requested.include?(issn)
+    end
+  end
+
+  printf("\r  batch %d/%d, %d journals matched", index + 1,
+         (eissns.length.to_f / BATCH_SIZE).ceil, by_eissn.length)
+  sleep(PAUSE_SECONDS)
+end
+puts
+
+output = {
+  "fetched_from" => API,
+  "eissns_requested" => eissns.length,
+  "by_eissn" => by_eissn.sort.to_h, # sorted so the committed diff is readable
+}
+File.write(OUT_FILE, JSON.generate(output))
+
+matched = by_eissn.length
+puts "fetch_openalex: matched #{matched} of #{eissns.length} eISSNs " \
+     "(#{(100.0 * matched / eissns.length).round(1)}%)"
+puts "fetch_openalex: wrote #{File.expand_path(OUT_FILE)} " \
+     "(#{(File.size(OUT_FILE) / 1024.0).round} KB)"
+puts "fetch_openalex: now run `rake` to rebuild html/data.json"
