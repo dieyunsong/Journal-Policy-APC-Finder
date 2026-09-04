@@ -1,11 +1,11 @@
-# TA-Finder — Northwestern Open Access & Transformative Agreement Finder
+# Journals with Article Processing Charge (APC) Agreements
 
-A static web tool that lets **Northwestern-affiliated authors** look up whether a journal is covered by an
-open access (OA) or transformative agreement (TA) negotiated by **Northwestern University Libraries** and
-the **Big Ten Academic Alliance (BTAA)** — and, for each covered title, what APC discount or waiver applies,
-which campuses are eligible, and when the agreement runs.
-
-Live site: <https://dieyunsong.github.io/TA-Finder/>
+Source code and data-generation tools for Northwestern University Libraries'
+**Journals with Article Processing Charge (APC) Agreements** resource. The standalone static reference
+implementation lets **Northwestern-affiliated authors** look up whether a journal is covered by an open access
+(OA) or transformative agreement (TA) negotiated by **Northwestern University Libraries** and the **Big Ten
+Academic Alliance (BTAA)** — and, for each covered title, what APC discount or waiver applies, which campuses
+are eligible, and when the agreement runs.
 
 Adapted from the University of Michigan Libraries'
 [article-processing-charge-list](https://github.com/mlibrary/article-processing-charge-list)
@@ -14,8 +14,8 @@ substantially the U-M code, rebranded for Northwestern; the data and build pipel
 
 ## What the data is
 
-Each row is one journal (or ACM conference-proceedings series) covered by an agreement — **6,147 rows across
-12 publishers**, enumerated from each publisher's official agreement journal list. Agreement terms (waiver,
+Each row is one journal (or ACM conference-proceedings series) covered by an agreement — **6,142 rows across
+11 publishers**, enumerated from each publisher's official agreement journal list. Agreement terms (waiver,
 campuses, coverage window) were sourced from
 [Open Access Publishing at Northwestern](https://www.library.northwestern.edu/use-the-libraries/research-teaching/open-access-publishing/),
 the publishers' own agreement pages, and the
@@ -43,7 +43,7 @@ plain, unlinked `conference proceedings` label.
 |---|---:|---|
 | Springer Nature | 2,010 | BTAA agreement, hybrid journals |
 | Wiley | 1,873 | BTAA agreement; 602 titles are waived only for manuscripts submitted by 8/31/2026 |
-| Association of Computing Machinery (ACM) | 1,631 | 161 journals/magazines + 1,470 conference-proceedings series |
+| Association of Computing Machinery (ACM) | 1,626 | 156 journals/magazines + 1,470 conference-proceedings series |
 | Cambridge University Press | 412 | Gold OA waiver |
 | Institute of Physics (IOP) | 73 | |
 | American Chemical Society (ACS) | 72 | Per-license discounted rates from 1/1/2026 |
@@ -82,7 +82,7 @@ Journals spread so evenly that nothing clears 10% keep their three largest subje
 instead. ACM conference-proceedings series and Royal Society of Chemistry titles are
 classified at the publisher level, because OpenAlex has no per-title record for
 them — proceedings are not journals to OpenAlex, and the RSC rows carry no eISSN to
-join on. **6,139 of the 6,147 rows (99.9%) end up reachable by a discipline filter**;
+join on. **6,134 of the 6,142 rows (99.9%) end up reachable by a discipline filter**;
 the remaining 8 carry no classification and appear only when no discipline is selected.
 
 The vocabulary is a Google Scholar-derived taxonomy of 8 broad areas and 172 topics,
@@ -121,7 +121,7 @@ can rebuild `data.json` and assert the result is byte-for-byte identical.
 this taxonomy but tags journals differently: it keeps **every** subject a journal
 touches (about 12 topics per journal), while this site keeps only those above 10%
 (about 2). That is not an inconsistency to fix. That tool searches 52,714 journals
-and needs recall, so no journal is ever unfindable. This one filters 6,147 rows that
+and needs recall, so no journal is ever unfindable. This one filters 6,142 rows that
 are all actionable and needs precision: under the uncapped rule, "Aviation &
 Aerospace Engineering" matched 1,458 of the taggable rows here, which makes the
 filter useless. See `lib/disciplines.rb` for the reasoning in context.
@@ -181,8 +181,9 @@ ruby -run -e httpd html -p 8000
 
 ## Deployment
 
-The site is published with **GitHub Pages** at <https://dieyunsong.github.io/TA-Finder/>.
-`.github/workflows/deploy-pages.yml` rebuilds `data.json` and deploys `html/` on every push to `main`.
+The `html/` directory is the standalone static reference implementation. It is not currently deployed as a
+public Northwestern Libraries service. The production presentation and its integration with the Northwestern
+Libraries website are pending.
 
 ## Related project
 
@@ -192,7 +193,8 @@ here must be re-applied there.
 
 ## Out of scope (not yet configured)
 
-- Deployment to Northwestern-owned hosting (the original U-M S3/CloudFront and Google-Sheets workflows were removed).
+- Production deployment to the Northwestern Libraries website. Any Cascade integration will be handled as a
+  separate concern from the data-generation workflow.
 - An automated refresh from a Northwestern-maintained spreadsheet. The legacy
   `bin/update` Google-Sheets importer was removed (see git history) — it required
   credentials that were never configured, and `bin/build_data` replaced it.
